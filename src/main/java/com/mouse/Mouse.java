@@ -17,6 +17,15 @@ public class Mouse {
         BitcoinNetwork network = BitcoinNetwork.TESTNET;
         WalletAppKit kit = WalletAppKit.launch(network, new File("."), "wallet2.dat", (k) -> {      });
 
+        BlockChain chain = kit.chain();
+        chain.addNewBestBlockListener(block -> {
+            System.out.println("new block height: "+block.getHeight() );
+        });
+
+        System.out.println("recive address: "+kit.wallet().currentReceiveAddress().toString());
+        System.out.println("balance: "+ kit.wallet().getBalance().toFriendlyString());
+        System.out.println("chain height: "+ chain.getBestChainHeight());
+
         kit.wallet().addCoinsSentEventListener((wallet, tx, prevBalance, newBalance) -> System.out.println("coins sent"));
         kit.wallet().addKeyChainEventListener(keys -> System.out.println("new key added"));
         kit.wallet().addScriptsChangeEventListener((wallet, scripts, isAddingScripts) -> System.out.println("new script added"));
@@ -33,19 +42,9 @@ public class Mouse {
             System.out.println("new block depth: " + confidence.getDepthInBlocks());
         });
 
-        BlockChain chain = kit.chain();
-        chain.addNewBestBlockListener(block -> {
-            System.out.println("new block height: "+block.getHeight() );
-        });
-
         Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
         System.out.println("press enter to exit");
         System.in.read();
-
-        System.out.println("recive address: "+kit.wallet().currentReceiveAddress().toString());
-        System.out.println("balance: "+ kit.wallet().getBalance().toFriendlyString());
-
-        System.out.println("chain height: "+ chain.getBestChainHeight());
 
         kit.stopAsync();
         kit.awaitTerminated();
