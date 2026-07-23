@@ -7,6 +7,7 @@ import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.NewBestBlockListener;
+import org.bitcoinj.core.listeners.OnTransactionBroadcastListener;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.CoinSelection;
 import org.bitcoinj.wallet.SendRequest;
@@ -30,9 +31,10 @@ public class Mouse {
         WalletAppKit kit = WalletAppKit.launch(network, new File("."), "wallet2.dat", (k) -> {      });
 
         BlockChain chain = kit.chain();
-        chain.addNewBestBlockListener(block -> {
-            System.out.println("block height: "+block.getHeight() );
-        });
+        chain.addNewBestBlockListener(block -> {System.out.println("block height: "+block.getHeight() );});
+
+        //PeerGroup peerGroup = kit.peerGroup();
+        //peerGroup.addOnTransactionBroadcastListener((peer, t) -> {});
 
         System.out.println(kit.wallet().getKeyChainSeed().getMnemonicString());
         System.out.println("recive address: "+kit.wallet().currentReceiveAddress().toString());
