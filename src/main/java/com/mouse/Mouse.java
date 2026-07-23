@@ -1,6 +1,8 @@
 package com.mouse;
 
 import org.bitcoinj.base.BitcoinNetwork;
+import org.bitcoinj.base.Coin;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.NewBestBlockListener;
 import org.bitcoinj.kits.WalletAppKit;
@@ -17,7 +19,7 @@ public class Mouse {
 
         BlockChain chain = kit.chain();
         chain.addNewBestBlockListener(block -> {
-            System.out.println("new block height: "+block.getHeight() );
+            System.out.println("block height: "+block.getHeight() );
         });
 
         System.out.println(kit.wallet().getKeyChainSeed().getMnemonicString());
@@ -25,20 +27,43 @@ public class Mouse {
         System.out.println("balance: "+ kit.wallet().getBalance().toFriendlyString());
         System.out.println("chain height: "+ chain.getBestChainHeight());
 
-        kit.wallet().addCoinsSentEventListener((wallet, tx, prevBalance, newBalance) -> System.out.println("coins sent"));
         kit.wallet().addKeyChainEventListener(keys -> System.out.println("new key added"));
         kit.wallet().addScriptsChangeEventListener((wallet, scripts, isAddingScripts) -> System.out.println("new script added"));
 
+        kit.wallet().addCoinsSentEventListener((wallet, tx, prevBalance, newBalance) -> {
+            TransactionConfidence confidence = tx.getConfidence();
+            TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
+            Sha256Hash id = tx.getTxId();
+            int blockDepth = confidence.getDepthInBlocks();
+            Coin value = tx.getValue(wallet);
+            Coin fee = tx.getFee();
+
+            System.out.println("Send transaction id: "+id+" confidence:"+confidenceType+" blockDepth:"+blockDepth);
+            System.out.println("Sent:"+value+" fee:"+fee+" old balance:"+prevBalance+" new balance:"+newBalance);
+        });
+
         kit.wallet().addCoinsReceivedEventListener((wallet, tx, prevBalance, newBalance) -> {
-            System.out.println("transaction id: " + tx.getTxId());
-            System.out.println("received: " + tx.getValue(wallet));
+            TransactionConfidence confidence = tx.getConfidence();
+            TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
+            Sha256Hash id = tx.getTxId();
+            int blockDepth = confidence.getDepthInBlocks();
+            Coin value = tx.getValue(wallet);
+
+            System.out.println("Receive transaction id: "+id+" confidence:"+confidenceType+" blockDepth:"+blockDepth);
+            System.out.println("Receive:"+value+" old balance:"+prevBalance+" new balance:"+newBalance);
         });
 
         kit.wallet().addTransactionConfidenceEventListener((wallet, tx) -> {
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
-            System.out.println("confidence changed: " + tx.getTxId()+" "+confidenceType);
-            System.out.println("new block depth: " + confidence.getDepthInBlocks());
+
+            Sha256Hash id = tx.getTxId();
+            int blockDepth = confidence.getDepthInBlocks();
+            Coin fromMe = tx.getValueSentFromMe(wallet);
+            Coin toMe = tx.getValueSentToMe(wallet);
+            Coin value = tx.getValue(wallet);
+
+            System.out.println("txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
