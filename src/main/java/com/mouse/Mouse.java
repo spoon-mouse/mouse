@@ -1,17 +1,27 @@
 package com.mouse;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import org.bitcoinj.base.Address;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.NewBestBlockListener;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.CoinSelection;
+import org.bitcoinj.wallet.SendRequest;
+import org.bitcoinj.wallet.Wallet;
+
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class Mouse {
 
     //https://coinfaucet.eu/en/btc-testnet/
+    public static final String coin_faucet_return_Address = "tb1qerzrlxcfu24davlur5sqmgzzgsal6wusda40er";
 
     public static void main(String[] args) throws IOException {
 
@@ -65,8 +75,10 @@ public class Mouse {
             Coin toMe = tx.getValueSentToMe(wallet);
             Coin value = tx.getValue(wallet);
 
-            System.out.println("txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
+            System.out.println("[Confidence event] txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
         });
+
+        Mouse.doSpend(kit, coin_faucet_return_Address);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
         System.out.println("press enter to exit");
@@ -75,4 +87,66 @@ public class Mouse {
         kit.stopAsync();
         kit.awaitTerminated();
     }
+
+
+    public static void doSpend(WalletAppKit kit, @Nullable String addressStr){
+
+        Wallet wallet = kit.wallet();
+        Address address = wallet.currentReceiveAddress();
+
+        if(addressStr!=null){
+            address = wallet.parseAddress(addressStr);
+        }
+
+
+        Coin sendAmount = Coin.ofSat(1000l);
+        SendRequest sendRequest = SendRequest.to(address, sendAmount);
+
+        System.out.println( "setup a send request" );
+
+        sendRequest.feePerKb = Coin.ofSat(1000l);  //1 sat per VB
+        System.out.println( sendRequest );
+        System.out.println("sendRequest.changeAddress: "+sendRequest.changeAddress);
+        System.out.println("wallet.currentChangeAddress: "+wallet.currentChangeAddress());
+
+
+        try {
+            wallet.completeTx(sendRequest);
+        } catch (InsufficientMoneyException | Wallet.TransactionCompletionException e) {
+            System.out.println(e);
+        }
+
+        Coin valueSentFromMe = sendRequest.tx.getValueSentFromMe(wallet);
+        Coin valueSentToMe   = sendRequest.tx.getValueSentToMe(wallet);
+        Coin value = sendRequest.tx.getValue(wallet);
+
+        System.out.println("txId:"+sendRequest.tx.getTxId()+" fromMe:"+valueSentFromMe+" toMe:"+valueSentToMe+" value:"+value);
+        System.out.println(sendRequest.tx);
+
+        sendRequest.tx.getInputs().forEach( input -> {
+            System.out.println(input);
+        } );
+
+        sendRequest.tx.getOutputs().forEach( output -> {
+            System.out.println(output);
+        });
+
+        PeerGroup peerGroup = kit.peerGroup();
+        TransactionBroadcast transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx);
+
+        CompletableFuture<TransactionBroadcast> castAndRelay = transactionBroadcast.broadcastAndAwaitRelay();
+;
+        transactionBroadcast.setProgressCallback( (double progress) -> {
+            System.out.println("transactionBroadcast progress:"+progress+"%");
+        } );
+
+        try {
+            TransactionBroadcast result = castAndRelay.get();
+            System.out.println("TransactionBroadcast and relay "+result);
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println(e);
+        }
+
+    }
+
 }
