@@ -1,1 +1,1 @@
-# BitCoinJ example, send recive listen 
+# BitCoinJ example, send, receive, listen 
