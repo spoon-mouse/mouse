@@ -1,10 +1,7 @@
 package com.mouse;
 
 import org.bitcoinj.base.BitcoinNetwork;
-import org.bitcoinj.core.BlockChain;
-import org.bitcoinj.core.StoredBlock;
-import org.bitcoinj.core.TransactionConfidence;
-import org.bitcoinj.core.VerificationException;
+import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.NewBestBlockListener;
 import org.bitcoinj.kits.WalletAppKit;
 import java.io.File;
@@ -14,6 +11,7 @@ public class Mouse {
 
     public static void main(String[] args) throws IOException {
 
+        Context context = new Context();
         BitcoinNetwork network = BitcoinNetwork.TESTNET;
         WalletAppKit kit = WalletAppKit.launch(network, new File("."), "wallet2.dat", (k) -> {      });
 
@@ -22,6 +20,7 @@ public class Mouse {
             System.out.println("new block height: "+block.getHeight() );
         });
 
+        System.out.println(kit.wallet().getKeyChainSeed().getMnemonicString());
         System.out.println("recive address: "+kit.wallet().currentReceiveAddress().toString());
         System.out.println("balance: "+ kit.wallet().getBalance().toFriendlyString());
         System.out.println("chain height: "+ chain.getBestChainHeight());
