@@ -137,7 +137,7 @@ public class Mouse {
         TransactionBroadcast transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx);
 
         CompletableFuture<TransactionBroadcast> castAndRelay = transactionBroadcast.broadcastAndAwaitRelay();
-;
+
         transactionBroadcast.setProgressCallback( (double progress) -> {
             System.out.println("transactionBroadcast progress:"+progress+"%");
         } );
