@@ -205,10 +205,10 @@ public class Mouse {
         if(addressStr!=null){
             address = wallet.parseAddress(addressStr);
         }
-        Coin sendAmount = Coin.ofSat(1010l);
+        Coin sendAmount = Coin.ofSat(1012l);
 
         SendRequest sendRequest = SendRequest.to(address, sendAmount);
-        sendRequest.feePerKb = Coin.ofSat(1044l);  //1 sat per VB
+        sendRequest.feePerKb = Coin.ofSat(1882l);  //1 sat per VB
 
         try {
             wallet.decrypt(password);
