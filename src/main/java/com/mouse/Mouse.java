@@ -1,73 +1,86 @@
 package com.mouse;
 
-import com.google.common.util.concurrent.ListenableFuture;
+
+import com.diogonunes.jcolor.Attribute;
+import de.vandermeer.asciitable.AsciiTable;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.NewBestBlockListener;
-import org.bitcoinj.core.listeners.OnTransactionBroadcastListener;
 import org.bitcoinj.kits.WalletAppKit;
-import org.bitcoinj.wallet.CoinSelection;
+import org.bitcoinj.utils.ListenableCompletableFuture;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+
+
+import static com.diogonunes.jcolor.Ansi.colorize;
+import static com.diogonunes.jcolor.Attribute.*;
 
 public class Mouse {
 
     //https://coinfaucet.eu/en/btc-testnet/
     public static final String coin_faucet_return_Address = "tb1qerzrlxcfu24davlur5sqmgzzgsal6wusda40er";
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
 
         Context context = new Context();
         BitcoinNetwork network = BitcoinNetwork.TESTNET;
         WalletAppKit kit = WalletAppKit.launch(network, new File("."), "wallet2.dat", (k) -> {      });
+        Wallet wallet = kit.wallet();
+
+        printTxnsInWallet(wallet);
+        printTxnsInWalletSimple(wallet);
 
         BlockChain chain = kit.chain();
         chain.addNewBestBlockListener(block -> {System.out.println("block height: "+block.getHeight() );});
 
-        //PeerGroup peerGroup = kit.peerGroup();
-        //peerGroup.addOnTransactionBroadcastListener((peer, t) -> {});
+        PeerGroup peerGroup = kit.peerGroup();
+        ListenableCompletableFuture<List<Peer>> listListenableCompletableFuture = peerGroup.waitForPeers(1);
+        listListenableCompletableFuture.get();
 
-        System.out.println(kit.wallet().getKeyChainSeed().getMnemonicString());
-        System.out.println("recive address: "+kit.wallet().currentReceiveAddress().toString());
-        System.out.println("balance: "+ kit.wallet().getBalance().toFriendlyString());
+        System.out.println(wallet.getKeyChainSeed().getMnemonicString());
+        System.out.println("total in: "+ wallet.getTotalReceived()+" total out:"+wallet.getTotalSent()+" balance:"+ wallet.getBalance().toFriendlyString());
+        System.out.println("current receive address: "+ wallet.currentReceiveAddress().toString());
         System.out.println("chain height: "+ chain.getBestChainHeight());
 
-        kit.wallet().addKeyChainEventListener(keys -> System.out.println("new key added"));
-        kit.wallet().addScriptsChangeEventListener((wallet, scripts, isAddingScripts) -> System.out.println("new script added"));
 
-        kit.wallet().addCoinsSentEventListener((wallet, tx, prevBalance, newBalance) -> {
+
+        wallet.addKeyChainEventListener(keys -> System.out.println("new key added"));
+        wallet.addScriptsChangeEventListener((eWallet, scripts, isAddingScripts) -> System.out.println("new script added"));
+
+        wallet.addCoinsSentEventListener((eWallet, tx, prevBalance, newBalance) -> {
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
             Sha256Hash id = tx.getTxId();
             int blockDepth = confidence.getDepthInBlocks();
-            Coin value = tx.getValue(wallet);
+            Coin value = tx.getValue(eWallet);
             Coin fee = tx.getFee();
 
             System.out.println("Send transaction id: "+id+" confidence:"+confidenceType+" blockDepth:"+blockDepth);
             System.out.println("Sent:"+value+" fee:"+fee+" old balance:"+prevBalance+" new balance:"+newBalance);
         });
 
-        kit.wallet().addCoinsReceivedEventListener((wallet, tx, prevBalance, newBalance) -> {
+        wallet.addCoinsReceivedEventListener((eWallet, tx, prevBalance, newBalance) -> {
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
             Sha256Hash id = tx.getTxId();
             int blockDepth = confidence.getDepthInBlocks();
-            Coin value = tx.getValue(wallet);
+            Coin value = tx.getValue(eWallet);
+
 
             System.out.println("Receive transaction id: "+id+" confidence:"+confidenceType+" blockDepth:"+blockDepth);
             System.out.println("Receive:"+value+" old balance:"+prevBalance+" new balance:"+newBalance);
         });
 
-        kit.wallet().addTransactionConfidenceEventListener((wallet, tx) -> {
+        wallet.addTransactionConfidenceEventListener((eWallet, tx) -> {
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
 
@@ -75,12 +88,11 @@ public class Mouse {
             int blockDepth = confidence.getDepthInBlocks();
             Coin fromMe = tx.getValueSentFromMe(wallet);
             Coin toMe = tx.getValueSentToMe(wallet);
-            Coin value = tx.getValue(wallet);
-
+            Coin value = tx.getValue(eWallet);
             System.out.println("[Confidence event] txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
         });
 
-        Mouse.doSpend(kit, coin_faucet_return_Address);
+        //Mouse.doSpend(kit, coin_faucet_return_Address);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
         System.out.println("press enter to exit");
@@ -88,6 +100,83 @@ public class Mouse {
 
         kit.stopAsync();
         kit.awaitTerminated();
+    }
+
+    private static void printTxnsInWallet(Wallet wallet) {
+
+        AsciiTable table = new AsciiTable();
+        table.addRule();
+        table.addRow("type", "fromMe", " toMe", "value", "fee", "confidenceType", "blockDepth");
+        table.addRule();
+
+        wallet.getTransactionsByTime().forEach( (tx)->{
+            TransactionConfidence confidence = tx.getConfidence();
+            TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
+
+            Sha256Hash id = tx.getTxId();
+            int blockDepth = confidence.getDepthInBlocks();
+            long fromMe = tx.getValueSentFromMe(wallet).getValue();
+            long toMe = tx.getValueSentToMe(wallet).getValue();
+            long value = tx.getValue(wallet).getValue();
+            Coin fee = tx.getFee();
+
+            String type="NOT SURE";
+            if(fromMe==0){
+                type="RECEIVE";
+            }else if( value < 0 ){
+                //I have sent but did I send to my self ?
+                if(fee != null && (value+fee.getValue())==0){
+                    type="MOVED";
+                }else{
+                    type="SENT";
+                }
+            }
+            if(fee==null){
+                fee=Coin.ZERO;
+            }
+            table.addRow(type, fromMe, toMe, value, fee, confidenceType, blockDepth);
+        });
+
+        table.addRule();
+        System.out.println(table.render());
+    }
+
+    private static void printTxnsInWalletSimple(Wallet wallet) {
+
+        AsciiTable table = new AsciiTable();
+        table.addRule();
+        table.addRow("type", "amount", "fee");
+        table.addRule();
+
+        wallet.getTransactionsByTime().forEach( (tx)->{
+
+            final long fromMe = tx.getValueSentFromMe(wallet).getValue();
+            final long toMe = tx.getValueSentToMe(wallet).getValue();
+            final long value = tx.getValue(wallet).getValue();
+            Coin fee = tx.getFee();
+            if(fee==null){
+                fee=Coin.ZERO;
+            }
+            long amount=0;
+            String type;
+            if(fromMe==0){
+                type="RECEIVE";
+                amount = toMe - fee.getValue();
+            }else{
+                if( Math.abs(value) == fee.getValue() ){
+                    type="MOVED";
+                    amount = fromMe;
+                }else{
+                    type="SENT";
+                    amount = (fromMe - toMe) - fee.getValue();
+                }
+            }
+
+            table.addRow(type, amount, fee);
+        });
+
+        table.addRule();
+        System.out.println(table.render());
     }
 
 
@@ -127,6 +216,7 @@ public class Mouse {
 
         sendRequest.tx.getInputs().forEach( input -> {
             System.out.println(input);
+            input.getScriptSig();
         } );
 
         sendRequest.tx.getOutputs().forEach( output -> {

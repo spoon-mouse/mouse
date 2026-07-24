@@ -34,6 +34,18 @@
             <version>2.0.18</version>
         </dependency>
 
+        <dependency>
+            <groupId>de.vandermeer</groupId>
+            <artifactId>asciitable</artifactId>
+            <version>0.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.diogonunes</groupId>
+            <artifactId>JColor</artifactId>
+            <version>5.5.1</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
 
 
