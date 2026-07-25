@@ -6,8 +6,10 @@ import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.Sha256Hash;
+import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionBroadcast;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
 import static com.mouse.cmd.txtio.LaunchScreen.getPassword;
@@ -25,7 +27,7 @@ public class SendTransactionScreen {
         terminal = textIO.getTextTerminal();
 
 
-        terminal.println(walletName+" balance: "+kit.wallet().getBalance());
+        terminal.println(walletName+" balance: "+kit.wallet().getBalance().toFriendlyString());
 
         SendTxnInfo info = get_SendTxnInfo_GuI();
         if(info==null){
@@ -36,8 +38,12 @@ public class SendTransactionScreen {
         try{
             sendTransaction.init(info);
 
-            Sha256Hash txId = sendTransaction.complete_txn(getPassword());
-            terminal.println("transaction completed id: "+txId);
+            Transaction txn = sendTransaction.complete_txn(getPassword());
+
+            long absVal=Math.abs( txn.getValue(kit.wallet()).getValue() );
+            long fee = txn.getFee().getValue();
+            long amount = absVal - fee;
+            terminal.println("transaction id: "+txn.getTxId()+" sending "+amount+" fee: "+fee);
 
 
             TransactionBroadcast transactionBroadcast = sendTransaction.broadCast(3);

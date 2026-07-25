@@ -3,9 +3,7 @@ package com.mouse.util;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
-import org.bitcoinj.core.InsufficientMoneyException;
-import org.bitcoinj.core.PeerGroup;
-import org.bitcoinj.core.TransactionBroadcast;
+import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
@@ -41,7 +39,7 @@ public class SendTransaction {
         address = wallet.parseAddress(info.address());
     }
 
-    public Sha256Hash complete_txn(CharSequence password) throws InsufficientMoneyException {
+    public Transaction complete_txn(CharSequence password) throws InsufficientMoneyException {
         sendRequest = SendRequest.to(address, amount);
         sendRequest.feePerKb = fee;
 
@@ -58,7 +56,7 @@ public class SendTransaction {
             throw e;
         }
 
-        return sendRequest.tx.getTxId();
+        return sendRequest.tx;
     }
 
 

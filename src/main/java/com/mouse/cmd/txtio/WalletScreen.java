@@ -26,7 +26,7 @@ public class WalletScreen {
         terminal = textIO.getTextTerminal();
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("name: "+walletName+" balance: "+kit.wallet().getBalance().toFriendlyString());
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance: "+kit.wallet().getBalance().toFriendlyString());
             switch (choice) {
                 case SEND:
                     SendTransactionScreen.show(walletName, kit);
