@@ -1,7 +1,6 @@
 package com.mouse;
 
 
-import com.diogonunes.jcolor.Attribute;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestWord;
 import org.bitcoinj.base.Address;
@@ -9,7 +8,6 @@ import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.OnTransactionBroadcastListener;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.utils.ListenableCompletableFuture;
 import org.bitcoinj.wallet.SendRequest;
@@ -20,13 +18,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 
 import static com.diogonunes.jcolor.Ansi.colorize;
-import static com.diogonunes.jcolor.Attribute.*;
 
 public class Mouse {
 
@@ -57,7 +55,7 @@ public class Mouse {
         ListenableCompletableFuture<List<Peer>> listListenableCompletableFuture = peerGroup.waitForPeers(1);
         listListenableCompletableFuture.get();
 
-        System.out.println("total in: "+ wallet.getTotalReceived()+" total out:"+wallet.getTotalSent()+" balance:"+ wallet.getBalance().toFriendlyString());
+        System.out.println("Balance:"+ wallet.getBalance().toFriendlyString());
         System.out.println("current receive address: "+ wallet.currentReceiveAddress().toString());
         System.out.println("chain height: "+ chain.getBestChainHeight());
 
@@ -91,10 +89,10 @@ public class Mouse {
         });
 
         //addConfidenceListener(wallet);
-        Mouse.doSpend(kit, coin_faucet_return_Address);
+        //Mouse.doSpend(kit, null);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
-        System.out.println("press enter to exit");
+        System.out.println("press return to exit");
         System.in.read();
         System.out.println("await termination");
         kit.stopAsync();
@@ -124,6 +122,7 @@ public class Mouse {
         table.addRow("id", "type", "amount", "fromMe", "toMe", "value", "fee", "confidenceType", "blockDepth");
         table.addRule();
 
+        List<Long> values = new ArrayList<>();
         List<Transaction> txns = wallet.getTransactionsByTime();
         txns.forEach( (tx)->{
             TransactionConfidence confidence = tx.getConfidence();
@@ -138,14 +137,15 @@ public class Mouse {
             if(fee==null){
                 fee=Coin.ZERO;
             }
-            TypeAmount tm = getTypeAmount(fromMe, toMe, fee, value);
-
-            table.addRow(id, tm.type(), tm.amount(), fromMe, toMe, value, fee, confidenceType, blockDepth);
+            AmountType pair = getTypeAmount(fromMe, toMe, fee, value);
+            table.addRow(id, pair.type(), pair.amount(), fromMe, toMe, value, fee, confidenceType, blockDepth);
+            values.add(value);
         });
-
         table.addRule();
         System.out.println(table.render());
-        System.out.println("transactions:"+txns.size());
+
+        long bal=values.stream().reduce(0l, Long::sum);
+        System.out.println("transactions:"+txns.size()+" balance: "+Coin.ofSat(bal).toFriendlyString());
     }
 
     private static void printTxnsInWalletSimple(Wallet wallet) {
@@ -155,6 +155,7 @@ public class Mouse {
         table.addRow("type", "amount", "fee");
         table.addRule();
 
+        List<Long> values = new ArrayList<>();
         List<Transaction> txns = wallet.getTransactionsByTime();
         txns.forEach( (tx)->{
             final long fromMe = tx.getValueSentFromMe(wallet).getValue();
@@ -164,37 +165,40 @@ public class Mouse {
             if(fee==null){
                 fee=Coin.ZERO;
             }
-            TypeAmount result = getTypeAmount(fromMe, toMe, fee, value);
-
-            table.addRow(result.type(), result.amount(), fee);
+            AmountType pair = getTypeAmount(fromMe, toMe, fee, value);
+            table.addRow(pair.type(), pair.amount(), fee);
+            values.add(value);
         });
 
         table.addRule();
         System.out.println(table.render());
-        System.out.println("transactions:"+txns.size());
+        long bal=values.stream().reduce(0l, Long::sum);
+        System.out.println("transactions:"+txns.size()+" balance:"+Coin.ofSat(bal).toFriendlyString());
     }
 
-    private static TypeAmount getTypeAmount(long fromMe, long toMe, Coin fee, long value) {
+    private static AmountType getTypeAmount(long fromMe, long toMe, Coin fee, long value) {
         long amount=0;
-        String type;
+        TxType type;
         if(fromMe == 0){
-            type="RECEIVE";
+            type = TxType.RECEIVE;
             amount = toMe - fee.getValue();
         }else{
             if( Math.abs(value) == fee.getValue() ){
-                type="MOVED";
+                type = TxType.MOVED;
                 amount = fromMe;
             }else{
-                type="SENT";
+                type = TxType.SENT;
                 amount = (fromMe - toMe) - fee.getValue();
             }
         }
-        TypeAmount result = new TypeAmount(amount, type);
+        AmountType result = new AmountType(amount, type, fee.getValue());
         return result;
     }
 
-    private record TypeAmount(long amount, String type) {
+    enum TxType {
+        RECEIVE, MOVED, SENT;
     }
+    private record AmountType(long amount, TxType type, long fee) { }
 
 
     public static void doSpend(WalletAppKit kit, @Nullable String addressStr){
