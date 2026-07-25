@@ -10,3 +10,4 @@ pom.xml~
 dependency-reduced-pom.xml
 *.spvchain
 *.wallet
+*.pass
