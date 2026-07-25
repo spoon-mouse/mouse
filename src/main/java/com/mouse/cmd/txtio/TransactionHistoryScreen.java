@@ -55,6 +55,7 @@ public class TransactionHistoryScreen {
             return;
         }
 
+
     }
 
     private static void view_a_transaction(Wallet wallet) {

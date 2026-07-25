@@ -44,7 +44,6 @@ public class WalletScreen {
                     break;
                 case SEED:
                     show_wallet_seed();
-
                     break;
                 case BACK:
                     return;

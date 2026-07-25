@@ -1,1 +1,2 @@
-# BitCoinJ example, send, receive, listen 
+# BitCoinJ Simple Console app
+# Want to help ? send a RP
