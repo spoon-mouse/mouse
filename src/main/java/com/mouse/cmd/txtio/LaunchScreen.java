@@ -30,8 +30,8 @@ public class LaunchScreen {
 
     public static void main(String[] args){
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutdown");
             if(kit!=null){
+                System.out.println("Shutdown");
                 kit.stopAsync();
                 terminal.println("closing: " + walletName);
                 kit.awaitTerminated();
