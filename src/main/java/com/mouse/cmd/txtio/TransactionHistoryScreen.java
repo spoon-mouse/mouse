@@ -1,9 +1,13 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.listener.ConfListner;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.wallet.Wallet;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.mouse.util.Spoon.*;
 
@@ -13,8 +17,10 @@ public class TransactionHistoryScreen {
     private static TextIO textIO;
     private static TextTerminal terminal;
 
+    private static List<ConfListner> confListners = new ArrayList();
+
     public enum Choice {
-        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, BACK, EXIT;
+        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, STOP_TRACKING, BACK, EXIT;
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -39,6 +45,9 @@ public class TransactionHistoryScreen {
                 case TRACK:
                     track_a_transaction(wallet);
                     break;
+                case STOP_TRACKING:
+                    stop_tracking(wallet);
+                    break;
                 case BACK:
                     return;
                 case EXIT:
@@ -48,6 +57,13 @@ public class TransactionHistoryScreen {
 
     }
 
+    private static void stop_tracking(Wallet wallet) {
+        confListners.forEach( confListner -> {
+            wallet.removeTransactionConfidenceEventListener(confListner);
+            terminal.println("stoped tracking: "+confListner.getId());
+        });
+    }
+
     private static void track_a_transaction(Wallet wallet) {
         String id = get_TxnId_from_gui();
 
@@ -55,7 +71,10 @@ public class TransactionHistoryScreen {
             return;
         }
 
-
+        ConfListner confListner = new ConfListner(terminal, id);
+        confListners.add(confListner);
+        wallet.addTransactionConfidenceEventListener(confListner);
+        terminal.println("tracking: "+id);
     }
 
     private static void view_a_transaction(Wallet wallet) {

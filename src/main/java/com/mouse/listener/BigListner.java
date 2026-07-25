@@ -52,6 +52,7 @@ public class BigListner {
     }
 
     private static void addConfidenceListener(Wallet wallet) {
+
         wallet.addTransactionConfidenceEventListener((eWallet, tx) -> {
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
