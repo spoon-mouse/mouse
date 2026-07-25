@@ -43,13 +43,10 @@ public class SendTransactionScreen {
             long absVal=Math.abs( txn.getValue(kit.wallet()).getValue() );
             long fee = txn.getFee().getValue();
             long amount = absVal - fee;
-            terminal.println("transaction id: "+txn.getTxId()+" sending "+amount+" fee: "+fee);
+            long total = amount+fee;
+            terminal.println("transaction id: "+txn.getTxId()+" sending "+amount+" fee: "+fee+" total: "+total);
 
-            TransactionBroadcast transactionBroadcast = sendTransaction.broadCast(3);
-            transactionBroadcast.setProgressCallback( (double progress) -> {
-                terminal.println("transaction progress:"+(int)(progress*100)+"%");
-            } );
-
+            sendTransaction.broadCast(3);
             sendTransaction.awaitBroadCasted();
             terminal.println("transaction broadcast: ");
             sendTransaction.awaitRelayed();
@@ -57,6 +54,9 @@ public class SendTransactionScreen {
 
         }catch (Exception e){
             terminal.println(e.getMessage());
+            terminal.println(e.toString());
+            System.out.println(e);
+            e.printStackTrace();
         }
     }
 

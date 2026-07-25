@@ -59,7 +59,10 @@ public class LaunchScreen {
             kit = getWalletAppKit(walletName, getPassword());
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
-            terminal.println(e.getMessage());
+            terminal.println(e.getMessage() + e.toString());
+
+            System.out.println(e);
+            e.printStackTrace();
         }finally {
             if(kit!=null){
                 kit.stopAsync();
