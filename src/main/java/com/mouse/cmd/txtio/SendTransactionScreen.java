@@ -40,11 +40,12 @@ public class SendTransactionScreen {
 
             Transaction txn = sendTransaction.complete_txn(getPassword());
 
+            String id = txn.getTxId().toString();
             long absVal=Math.abs( txn.getValue(kit.wallet()).getValue() );
             long fee = txn.getFee().getValue();
             long amount = absVal - fee;
             long total = amount+fee;
-            terminal.println("transaction id: "+txn.getTxId()+" sending "+amount+" fee: "+fee+" total: "+total);
+            terminal.println("transaction id: "+id+" sending "+amount+" fee: "+fee+" total: "+total);
 
             sendTransaction.broadCast(3);
             sendTransaction.awaitBroadCasted();
@@ -53,10 +54,8 @@ public class SendTransactionScreen {
             terminal.println("transaction relayed: ");
 
         }catch (Exception e){
-            terminal.println(e.getMessage());
-            terminal.println(e.toString());
             System.out.println(e);
-            e.printStackTrace();
+            terminal.println(e.getMessage());
         }
     }
 

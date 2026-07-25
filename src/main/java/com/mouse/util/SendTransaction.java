@@ -39,7 +39,7 @@ public class SendTransaction {
         address = wallet.parseAddress(info.address());
     }
 
-    public Transaction complete_txn(CharSequence password) throws InsufficientMoneyException {
+    public Transaction complete_txn(CharSequence password) throws Exception {
         sendRequest = SendRequest.to(address, amount);
         sendRequest.feePerKb = fee;
 
@@ -49,11 +49,21 @@ public class SendTransaction {
             if(!wallet.isEncrypted()){
                 wallet.encrypt(password);
             }
-        } catch (InsufficientMoneyException | Wallet.TransactionCompletionException e) {
+        } catch (InsufficientMoneyException | Wallet.DustySendRequested e) {
+
+            if( e instanceof Wallet.DustySendRequested){
+                throw new Exception("Dusty transaction not allowed");
+            }
+            if( e instanceof InsufficientMoneyException){
+                throw new Exception(e.getMessage());
+            }
+
+            throw new Exception(e);
+
+        }finally {
             if(!wallet.isEncrypted()){
                 wallet.encrypt(password);
             }
-            throw e;
         }
 
         return sendRequest.tx;

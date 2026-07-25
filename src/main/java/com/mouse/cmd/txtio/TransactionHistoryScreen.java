@@ -14,7 +14,7 @@ public class TransactionHistoryScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, BACK, EXIT;
+        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, BACK, EXIT;
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -36,6 +36,9 @@ public class TransactionHistoryScreen {
                 case VIEW_TRANSACTION:
                     view_a_transaction(wallet);
                     break;
+                case TRACK:
+                    track_a_transaction(wallet);
+                    break;
                 case BACK:
                     return;
                 case EXIT:
@@ -45,9 +48,18 @@ public class TransactionHistoryScreen {
 
     }
 
+    private static void track_a_transaction(Wallet wallet) {
+        String id = get_TxnId_from_gui();
+
+        if(id==null || id.isEmpty()){
+            return;
+        }
+
+    }
+
     private static void view_a_transaction(Wallet wallet) {
 
-        String id = textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
+        String id = get_TxnId_from_gui();
 
         if(id==null || id.isEmpty()){
             return;
@@ -55,6 +67,10 @@ public class TransactionHistoryScreen {
 
         String details = transaction_details(wallet, id);
         terminal.println( details );
+    }
+
+    private static String get_TxnId_from_gui() {
+        return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
     }
 
 }

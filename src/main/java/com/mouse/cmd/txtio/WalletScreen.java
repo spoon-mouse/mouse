@@ -4,7 +4,12 @@ import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.Address;
+import org.bitcoinj.crypto.KeyCrypterException;
 import org.bitcoinj.kits.WalletAppKit;
+
+import java.io.IOException;
+
+import static com.mouse.cmd.txtio.LaunchScreen.getPassword;
 
 
 public class WalletScreen {
@@ -19,7 +24,7 @@ public class WalletScreen {
         SEND, RECIVE, TXNS, LISTEN, SEED, BACK, EXIT;
     }
 
-    public static void show(String name, WalletAppKit appkit){
+    public static void show(String name, WalletAppKit appkit) throws IOException {
         kit = appkit;
         walletName=name;
         textIO = TextIoFactory.getTextIO();
@@ -37,10 +42,35 @@ public class WalletScreen {
                 case TXNS:
                     TransactionHistoryScreen.show(walletName, kit.wallet());
                     break;
+                case SEED:
+                    show_wallet_seed();
+
+                    break;
                 case BACK:
                     return;
                 case EXIT:
                     System.exit(0);
+            }
+        }
+    }
+
+    private static void show_wallet_seed() throws IOException {
+        terminal.println("WARN showing seed in plain text!");
+        CharSequence password = getPassword();
+        try {
+            kit.wallet().decrypt(password);
+            String seed = kit.wallet().getKeyChainSeed().getMnemonicString();
+            terminal.println(seed);
+        }catch (Exception e){
+            if( e instanceof KeyCrypterException.InvalidCipherText){
+                terminal.println("Could not decrypt seed: invalid password");
+            }else{
+                terminal.println(e.getMessage());
+            }
+        }finally {
+            if(!kit.wallet().isEncrypted()){
+                kit.wallet().encrypt(password);
+                password=null;
             }
         }
     }

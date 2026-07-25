@@ -15,6 +15,9 @@ import static com.mouse.util.Spoon.getWalletAppKit;
 
 public class LaunchScreen {
 
+    private static WalletAppKit kit=null;
+    private static String walletName;
+
     private static final String  DEFAULT_WALLET_NAME = "wallet";
     private static final String  DEFAULT_PASSWORD = "wallet.pass";
 
@@ -26,6 +29,16 @@ public class LaunchScreen {
     }
 
     public static void main(String[] args){
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutdown");
+            if(kit!=null){
+                kit.stopAsync();
+                terminal.println("closing: " + walletName);
+                kit.awaitTerminated();
+                terminal.println("closed: " + walletName);
+            }
+        }));
+
         show();
     }
 
@@ -53,16 +66,13 @@ public class LaunchScreen {
     }
 
     private static void go_into_the_wallet()  {
-        WalletAppKit kit=null;
-        String walletName = get_walletName();;
+        walletName = get_walletName();
         try{
             kit = getWalletAppKit(walletName, getPassword());
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
-            terminal.println(e.getMessage() + e.toString());
-
             System.out.println(e);
-            e.printStackTrace();
+            terminal.println(e.getMessage() + e.toString());
         }finally {
             if(kit!=null){
                 kit.stopAsync();
