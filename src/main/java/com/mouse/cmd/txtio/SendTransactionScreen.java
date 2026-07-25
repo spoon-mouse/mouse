@@ -45,10 +45,9 @@ public class SendTransactionScreen {
             long amount = absVal - fee;
             terminal.println("transaction id: "+txn.getTxId()+" sending "+amount+" fee: "+fee);
 
-
             TransactionBroadcast transactionBroadcast = sendTransaction.broadCast(3);
             transactionBroadcast.setProgressCallback( (double progress) -> {
-                terminal.println("transaction progress:"+progress+"%");
+                terminal.println("transaction progress:"+(int)(progress*100)+"%");
             } );
 
             sendTransaction.awaitBroadCasted();
