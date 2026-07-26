@@ -100,7 +100,7 @@ public class LaunchScreen {
         walletName = get_wallet_name_from_gui();
         try{
             kit = getWalletAppKit(walletName, get_password_from_gui());
-            WalletScreen.show(walletName, kit);
+                WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
             terminal.println(e.getMessage());
@@ -128,10 +128,8 @@ public class LaunchScreen {
 
             DownloadProgTracker tracker = new DownloadProgTracker(terminal);
             kit.setDownloadListener(tracker);
-            try {
-                tracker.await();
-            }catch (InterruptedException e) {
-            }
+
+            WalletScreen.show(walletName, kit);
 
         } catch (IOException e) {
             System.out.println(e);

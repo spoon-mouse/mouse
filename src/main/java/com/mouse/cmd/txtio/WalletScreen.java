@@ -65,7 +65,6 @@ public class WalletScreen {
 
             DeterministicSeed deterministicSeed = kit.wallet().getKeyChainSeed();
             String seed = deterministicSeed.getMnemonicString();
-            System.out.println(seed);
             terminal.println(seed);
             seed=null;
         }catch (Exception e){
