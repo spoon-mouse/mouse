@@ -28,10 +28,8 @@ public class ConfListner implements TransactionConfidenceEventListener {
             Coin fromMe = tx.getValueSentFromMe(wallet);
             Coin toMe = tx.getValueSentToMe(wallet);
             Coin value = tx.getValue(wallet);
-            //terminal.setBookmark("mark1");
-            terminal.println();
-            terminal.println("[Confidence event] txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
-            //terminal.resetToBookmark("mark1");
+            terminal.moveToLineStart();
+            terminal.println("[event] txId: "+id+" sent:"+fromMe+" recived:"+toMe+" value:"+value+" "+confidenceType+" "+blockDepth);
         }
     }
 

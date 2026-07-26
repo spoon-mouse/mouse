@@ -27,7 +27,7 @@ public class Spoon {
 
         Context context = new Context();
 
-        WalletAppKit kit = WalletAppKit.launch(network, walletDir, walletName, (k) -> {});
+        WalletAppKit kit = WalletAppKit.launch(network, walletDir, walletName);
         Wallet wallet = kit.wallet();
 
         if(!wallet.isEncrypted()){
@@ -36,7 +36,6 @@ public class Spoon {
 
         boolean validPassword = wallet.checkPassword(password);
         password=null;
-
         if(!validPassword ){
             kit.close();
             throw new Exception("invalid password");

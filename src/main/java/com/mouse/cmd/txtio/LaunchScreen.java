@@ -1,11 +1,15 @@
 package com.mouse.cmd.txtio;
 
-import com.mouse.util.Spoon;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.base.BitcoinNetwork;
+import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.DeterministicSeed;
+import org.bitcoinj.wallet.Wallet;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -16,7 +20,7 @@ import static com.mouse.util.Spoon.getWalletAppKit;
 public class LaunchScreen {
 
     private static WalletAppKit kit=null;
-    private static String walletName;
+    private static String walletName=null;
 
     private static final String  DEFAULT_WALLET_NAME = "wallet";
     private static final String  DEFAULT_PASSWORD = "wallet.pass";
@@ -30,15 +34,8 @@ public class LaunchScreen {
 
     public static void main(String[] args){
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if(kit!=null){
-                System.out.println("Shutdown");
-                kit.stopAsync();
-                terminal.println("closing: " + walletName);
-                kit.awaitTerminated();
-                terminal.println("closed: " + walletName);
-            }
+            stop_kit();
         }));
-
         show();
     }
 
@@ -53,37 +50,30 @@ public class LaunchScreen {
                     //get_walletName_password();
                     break;
                 case LOAD:
-                        go_into_the_wallet();
+                    load_wallet();
                     break;
                 case RESTORE:
-                    get_seed();
+                    restore_from_seed();
                     break;
                 case EXIT:
                     System.exit(0);
             }
-        }
-
-    }
-
-    private static void go_into_the_wallet()  {
-        walletName = get_walletName();
-        try{
-            kit = getWalletAppKit(walletName, getPassword());
-            WalletScreen.show(walletName, kit);
-        }catch(Exception e){
-            System.out.println(e);
-            terminal.println(e.getMessage() + e.toString());
-        }finally {
-            if(kit!=null){
-                kit.stopAsync();
-                terminal.println("closing: " + walletName);
-                kit.awaitTerminated();
-                terminal.println("closed: " + walletName);
-            }
+            stop_kit();
         }
     }
 
-    public static CharSequence getPassword() throws IOException{
+    private static void stop_kit() {
+        if(kit!=null){
+            kit.stopAsync();
+            terminal.println("closing: " + walletName);
+            kit.awaitTerminated();
+            terminal.println("closed: " + walletName);
+            kit=null;
+        }
+    }
+
+
+    public static CharSequence get_password_from_gui() throws IOException{
         CharSequence password = textIO.newStringInputReader()
                                         .withDefaultValue(DEFAULT_PASSWORD)
                                         .withInputMasking(true)
@@ -97,15 +87,57 @@ public class LaunchScreen {
         return password;
     }
 
-    public static String get_walletName() {
+    public static String get_wallet_name_from_gui() {
         return textIO.newStringInputReader()
                 .withDefaultValue(DEFAULT_WALLET_NAME)
                 .read("name:");
     }
 
 
-    private static void get_seed() {
-       textIO.newStringInputReader().read("12 word seed phrase:");
+    private static void load_wallet()  {
+        walletName = get_wallet_name_from_gui();
+        try{
+            kit = getWalletAppKit(walletName, get_password_from_gui());
+            WalletScreen.show(walletName, kit);
+        }catch(Exception e){
+            System.out.println(e);
+            terminal.println(e.getMessage());
+        }
+    }
+
+
+
+
+
+    private static void restore_from_seed() {
+
+        String seed_txt = textIO.newStringInputReader().withInputTrimming(true).withPattern("^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$").read("12 word seed phrase:");
+        DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
+
+        //walletName = get_wallet_name_from_gui();
+        //kit=WalletAppKit.launch(BitcoinNetwork.TESTNET, new File("."), walletName);
+        //kit.restoreWalletFromSeed(seed);
+
+        Wallet wallet = Wallet.fromSeed(BitcoinNetwork.TESTNET, seed, ScriptType.P2PKH);
+        try {
+            if(!wallet.isEncrypted()) {
+                wallet.encrypt(get_password_from_gui());
+            }
+            walletName=get_wallet_name_from_gui();
+            wallet.saveToFile(new File(walletName+".wallet"));
+        } catch (IOException e) {
+            System.out.println(e);
+            terminal.println(e.getMessage());
+        }
+
+        /*
+        try {
+            WalletScreen.show(walletName, kit);
+        }catch (Exception e){
+            System.out.println(e);
+            terminal.println(e.getMessage());
+        }*/
+
     }
 
 }

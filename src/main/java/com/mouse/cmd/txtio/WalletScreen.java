@@ -6,10 +6,11 @@ import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.crypto.KeyCrypterException;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.DeterministicSeed;
 
 import java.io.IOException;
 
-import static com.mouse.cmd.txtio.LaunchScreen.getPassword;
+import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 
 
 public class WalletScreen {
@@ -55,11 +56,20 @@ public class WalletScreen {
 
     private static void show_wallet_seed() throws IOException {
         terminal.println("WARN showing seed in plain text!");
-        CharSequence password = getPassword();
+        CharSequence password = get_password_from_gui();
         try {
             kit.wallet().decrypt(password);
-            String seed = kit.wallet().getKeyChainSeed().getMnemonicString();
+            DeterministicSeed deterministicSeed = kit.wallet().getKeyChainSeed();
+
+            System.out.println(deterministicSeed);
+            System.out.println(deterministicSeed.hashCode());
+            deterministicSeed.getMnemonicCode().forEach( i->System.out.print(i+" "));
+            System.out.println();
+
+            String seed = deterministicSeed.getMnemonicString();
+            System.out.println(seed);
             terminal.println(seed);
+            seed=null;
         }catch (Exception e){
             if( e instanceof KeyCrypterException.InvalidCipherText){
                 terminal.println("Could not decrypt seed: invalid password");

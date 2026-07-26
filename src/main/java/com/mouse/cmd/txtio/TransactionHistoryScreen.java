@@ -75,6 +75,7 @@ public class TransactionHistoryScreen {
         confListners.add(confListner);
         wallet.addTransactionConfidenceEventListener(confListner);
         terminal.println("tracking: "+id);
+
     }
 
     private static void view_a_transaction(Wallet wallet) {

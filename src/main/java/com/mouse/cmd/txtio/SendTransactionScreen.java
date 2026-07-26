@@ -5,15 +5,10 @@ import com.mouse.util.SendTxnInfo;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
-import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.Transaction;
-import org.bitcoinj.core.TransactionBroadcast;
 import org.bitcoinj.kits.WalletAppKit;
-import org.bitcoinj.wallet.SendRequest;
-import org.bitcoinj.wallet.Wallet;
 
-import static com.mouse.cmd.txtio.LaunchScreen.getPassword;
-import static com.mouse.util.Spoon.*;
+import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 
 
 public class SendTransactionScreen {
@@ -38,7 +33,7 @@ public class SendTransactionScreen {
         try{
             sendTransaction.init(info);
 
-            Transaction txn = sendTransaction.complete_txn(getPassword());
+            Transaction txn = sendTransaction.complete_txn(get_password_from_gui());
 
             String id = txn.getTxId().toString();
             long absVal=Math.abs( txn.getValue(kit.wallet()).getValue() );
