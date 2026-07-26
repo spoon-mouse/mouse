@@ -145,26 +145,32 @@ public class LaunchScreen {
 
             DownloadProgressTracker listener = new DownloadProgressTracker() {
                 @Override
+                protected void startDownload(int blocks) {
+                    terminal.println("Downloading The Block Chain...");
+                }
+                @Override
                 public void onChainDownloadStarted(Peer peer, int blocksLeft) {
-                    terminal.println("Downloading the block chain "+blocksLeft+" block to go, This will take time...");
+                    terminal.println("Downloading chain of "+blocksLeft+" blocks...");
+                }
+
+                @Override
+                protected void progress(double pct, int blocksSoFar, Instant time) {
+                    terminal.println("Block chain download: "+pct+"%"+" blocks downloaded: "+blocksSoFar);
                 }
 
                 @Override
                 public void doneDownload() {
-                    terminal.println("Blockchain downloaded");
-                }
-                @Override
-                protected void progress(double pct, int blocksSoFar, Instant time) {
-                    terminal.println("Block chain download: "+pct+"%"+" blocks downloaded: "+blocksSoFar);
+                    terminal.println("Blockchain download complete");
                 }
             };
 
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
+
+            terminal.println("Restoring from seen...");
             listener.await();
 
             wallet.saveToFile(new File(walletName+".wallet") );
-
             terminal.println(wallet.toString());
 
             //WalletScreen.show(walletName, kit);
