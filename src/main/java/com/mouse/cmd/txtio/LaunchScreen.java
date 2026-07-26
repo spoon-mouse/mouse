@@ -144,6 +144,7 @@ public class LaunchScreen {
 
 
             DownloadProgressTracker listener = new DownloadProgressTracker() {
+                private long count=0;
                 @Override
                 protected void startDownload(int blocks) {
                     terminal.println("Downloading The Block Chain...");
@@ -157,6 +158,15 @@ public class LaunchScreen {
                 protected void progress(double pct, int blocksSoFar, Instant time) {
                     terminal.println("Block chain download: "+pct+"%"+" blocks downloaded: "+blocksSoFar);
                 }
+
+                @Override
+                public void onBlocksDownloaded(Peer peer, Block block, @Nullable FilteredBlock filteredBlock, int blocksLeft) {
+                    count++;
+                    if(count%100000==0){
+                        terminal.println("blocks downloaded: "+count);
+                    }
+                }
+
 
                 @Override
                 public void doneDownload() {
