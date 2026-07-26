@@ -167,7 +167,7 @@ public class LaunchScreen {
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
 
-            terminal.println("Restoring from seen...");
+            terminal.println("Restoring from seed...");
             listener.await();
 
             wallet.saveToFile(new File(walletName+".wallet") );
