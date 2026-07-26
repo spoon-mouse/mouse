@@ -1,7 +1,5 @@
 package com.mouse.cmd.txtio;
 
-import com.mouse.listener.DownloadProgTracker;
-import org.beryx.textio.ReadHandlerData;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -22,8 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.util.function.Function;
 
 import static com.mouse.util.Spoon.getWalletAppKit;
 
@@ -145,28 +141,26 @@ public class LaunchScreen {
 
             DownloadProgressTracker listener = new DownloadProgressTracker() {
                 private long count=0;
-                @Override
-                protected void startDownload(int blocks) {
-                    terminal.println("Downloading The Block Chain...");
-                }
+                private long chainSize = Long.MAX_VALUE;
+                private boolean first=true;
                 @Override
                 public void onChainDownloadStarted(Peer peer, int blocksLeft) {
-                    terminal.println("Downloading chain of "+blocksLeft+" blocks...");
-                }
-
-                @Override
-                protected void progress(double pct, int blocksSoFar, Instant time) {
-                    terminal.println("Block chain download: "+pct+"%"+" blocks downloaded: "+blocksSoFar);
+                    if(first){
+                        terminal.println("Downloading chain: "+blocksLeft+" blocks...");
+                        chainSize =blocksLeft;
+                        first=false;
+                    }
                 }
 
                 @Override
                 public void onBlocksDownloaded(Peer peer, Block block, @Nullable FilteredBlock filteredBlock, int blocksLeft) {
                     count++;
+
                     if(count%100000==0){
-                        terminal.println("blocks downloaded: "+count);
+                        double pct = (count/blocksLeft) * 100;
+                        terminal.println("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
                     }
                 }
-
 
                 @Override
                 public void doneDownload() {
