@@ -1,20 +1,29 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.DownloadProgTracker;
+import org.beryx.textio.ReadHandlerData;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
+import org.bitcoinj.base.Network;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.net.discovery.DnsDiscovery;
+import org.bitcoinj.store.BlockStore;
+import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.util.function.Function;
 
 import static com.mouse.util.Spoon.getWalletAppKit;
 
@@ -100,7 +109,7 @@ public class LaunchScreen {
         walletName = get_wallet_name_from_gui();
         try{
             kit = getWalletAppKit(walletName, get_password_from_gui());
-                WalletScreen.show(walletName, kit);
+            WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
             terminal.println(e.getMessage());
@@ -112,30 +121,64 @@ public class LaunchScreen {
 
 
     private static void restore_from_seed() {
+        Network network = BitcoinNetwork.TESTNET;
+        NetworkParameters params = NetworkParameters.of(network);
 
-        String seed_txt = textIO.newStringInputReader().withInputTrimming(true).withPattern("^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$").read("12 word seed phrase:");
+
+        String seed_txt = get_seed_from_gui();
         DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
 
-        Wallet wallet = Wallet.fromSeed(BitcoinNetwork.TESTNET, seed, ScriptType.P2WPKH);
+        walletName=get_wallet_name_from_gui();
         try {
-            if(!wallet.isEncrypted()) {
-                wallet.encrypt(get_password_from_gui());
-            }
-            walletName=get_wallet_name_from_gui();
-            wallet.saveToFile(new File(walletName+".wallet"));
+            //ScriptType.P2WPKH or ScriptType.P2PKH.  ?
+            Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2PKH);
+            wallet.clearTransactions(0);
 
-            kit = WalletAppKit.launch(BitcoinNetwork.TESTNET, new File("."), walletName);
+            BlockStore blockStore = new SPVBlockStore(params, new File(walletName+".spvchain"));
 
-            DownloadProgTracker tracker = new DownloadProgTracker(terminal);
-            kit.setDownloadListener(tracker);
+            //wallet in the chain constructor
+            BlockChain chain = new BlockChain(network, wallet, blockStore);
+            PeerGroup peerGroup = new PeerGroup(network, chain);
+            peerGroup.addPeerDiscovery(new DnsDiscovery(network));
+            peerGroup.addWallet(wallet);
 
-            WalletScreen.show(walletName, kit);
 
-        } catch (IOException e) {
+            DownloadProgressTracker listener = new DownloadProgressTracker() {
+                @Override
+                public void doneDownload() {
+                    terminal.println("Blockchain downloaded");
+                }
+                @Override
+                protected void progress(double pct, int blocksSoFar, Instant time) {
+                    terminal.println("Downloaded "+pct+"%"+" of the block chain: "+blocksSoFar+"downloaded so far");
+                }
+                @Override
+                public void onBlocksDownloaded(Peer peer, Block block, @Nullable FilteredBlock filteredBlock, int blocksLeft) {
+                    terminal.println("Blocks to go: "+blocksLeft);
+                }
+            };
+
+
+            peerGroup.start();
+            peerGroup.startBlockChainDownload(listener);
+            listener.await();
+
+            wallet.saveToFile(new File(walletName+".wallet") );
+
+            terminal.println(wallet.toString());
+
+
+            //WalletScreen.show(walletName, kit);
+
+        } catch (Exception e) {
             System.out.println(e);
             terminal.println(e.getMessage());
         }
 
+    }
+
+    private static String get_seed_from_gui() {
+        return textIO.newStringInputReader().withInputTrimming(true).withPattern("^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$").read("12 word seed phrase:");
     }
 
 }
