@@ -56,16 +56,14 @@ public class WalletScreen {
 
     private static void show_wallet_seed() throws IOException {
         terminal.println("WARN showing seed in plain text!");
-        CharSequence password = get_password_from_gui();
+        CharSequence password=null;
         try {
-            kit.wallet().decrypt(password);
+            if(kit.wallet().isEncrypted()){
+                password = get_password_from_gui();
+                kit.wallet().decrypt(password);
+            }
+
             DeterministicSeed deterministicSeed = kit.wallet().getKeyChainSeed();
-
-            System.out.println(deterministicSeed);
-            System.out.println(deterministicSeed.hashCode());
-            deterministicSeed.getMnemonicCode().forEach( i->System.out.print(i+" "));
-            System.out.println();
-
             String seed = deterministicSeed.getMnemonicString();
             System.out.println(seed);
             terminal.println(seed);

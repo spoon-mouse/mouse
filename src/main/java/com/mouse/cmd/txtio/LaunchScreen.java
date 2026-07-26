@@ -1,10 +1,12 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.listener.DownloadProgTracker;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
@@ -114,29 +116,27 @@ public class LaunchScreen {
         String seed_txt = textIO.newStringInputReader().withInputTrimming(true).withPattern("^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$").read("12 word seed phrase:");
         DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
 
-        //walletName = get_wallet_name_from_gui();
-        //kit=WalletAppKit.launch(BitcoinNetwork.TESTNET, new File("."), walletName);
-        //kit.restoreWalletFromSeed(seed);
-
-        Wallet wallet = Wallet.fromSeed(BitcoinNetwork.TESTNET, seed, ScriptType.P2PKH);
+        Wallet wallet = Wallet.fromSeed(BitcoinNetwork.TESTNET, seed, ScriptType.P2WPKH);
         try {
             if(!wallet.isEncrypted()) {
                 wallet.encrypt(get_password_from_gui());
             }
             walletName=get_wallet_name_from_gui();
             wallet.saveToFile(new File(walletName+".wallet"));
+
+            kit = WalletAppKit.launch(BitcoinNetwork.TESTNET, new File("."), walletName);
+
+            DownloadProgTracker tracker = new DownloadProgTracker(terminal);
+            kit.setDownloadListener(tracker);
+            try {
+                tracker.await();
+            }catch (InterruptedException e) {
+            }
+
         } catch (IOException e) {
             System.out.println(e);
             terminal.println(e.getMessage());
         }
-
-        /*
-        try {
-            WalletScreen.show(walletName, kit);
-        }catch (Exception e){
-            System.out.println(e);
-            terminal.println(e.getMessage());
-        }*/
 
     }
 
