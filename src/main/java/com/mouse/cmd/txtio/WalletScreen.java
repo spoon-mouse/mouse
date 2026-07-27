@@ -10,6 +10,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Optional;
 
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 
@@ -65,28 +66,6 @@ public class WalletScreen {
         }
     }
 
-    private static void change_password() {
-        final Wallet wallet = kit.wallet();
-        terminal.println("CHANGE PASSWORD for wallet: "+walletName);
-
-        if(wallet.isEncrypted()){
-            try {
-                terminal.print("OLD PASSWORD: ");
-                wallet.decrypt(get_password_from_gui());
-
-                terminal.print("NEW PASSWORD: ");
-                wallet.encrypt(get_password_from_gui());
-            }catch (Wallet.BadWalletEncryptionKeyException e){
-                terminal.println(BAD_WALLET_DECRYPTION);
-            }
-        }else{
-            terminal.println("wallet not encrypted:");
-            terminal.print("NEW PASSWORD: ");
-            wallet.encrypt(get_password_from_gui());
-        }
-        terminal.println("encrypted:");
-    }
-
     private static void show_wallet_info() {
         terminal.println(kit.wallet().toString());
 
@@ -112,9 +91,15 @@ public class WalletScreen {
                 wallet.decrypt(password);
             }
             DeterministicSeed deterministicSeed = wallet.getKeyChainSeed();
-            String seed = deterministicSeed.getMnemonicString();
+
+            final Optional<Instant> creationTime = deterministicSeed.getCreationTime();
+            if(creationTime.isPresent()) {
+                final long epochSeconds = creationTime.get().getEpochSecond();
+                terminal.println("creation epoch seconds: "+epochSeconds);
+            }
+
+            final String seed = deterministicSeed.getMnemonicString();
             terminal.println(seed);
-            seed=null;
         }catch (Wallet.BadWalletEncryptionKeyException e){
             terminal.println(BAD_WALLET_DECRYPTION);
         }finally {

@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 
 
 public class LaunchScreen {
@@ -133,9 +134,16 @@ public class LaunchScreen {
 
     private static void restore_from_seed() {
 
-
         String seed_txt = get_seed_from_gui();
-        DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
+        long epochSeconds = get_optinal_creation_epoch_seconds();
+        DeterministicSeed seed;
+        if(epochSeconds<=0L){
+            seed = DeterministicSeed.ofMnemonic(seed_txt, "");
+        }else{
+            seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+        }
+
+
 
         walletName=get_wallet_name_from_gui();
         try {
@@ -167,6 +175,10 @@ public class LaunchScreen {
             System.out.println(e);
             terminal.println(e.getMessage());
         }
+    }
+
+    private static long get_optinal_creation_epoch_seconds(){
+        return textIO.newLongInputReader().withMinVal(0l).withDefaultValue(0l).read("creation epoch seconds (optionally speeds up restoration):");
     }
 
     private static String get_seed_from_gui() {
