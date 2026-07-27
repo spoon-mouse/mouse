@@ -148,7 +148,7 @@ public class LaunchScreen {
         walletName=get_wallet_name_from_gui();
         try {
             //ScriptType.P2WPKH or ScriptType.P2PKH.  ?
-            Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2PKH);
+            Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
             BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+".spvchain"));

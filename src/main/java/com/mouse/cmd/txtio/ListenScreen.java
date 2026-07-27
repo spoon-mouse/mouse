@@ -16,7 +16,7 @@ public class ListenScreen {
         TextIO textIO = TextIoFactory.getTextIO();
         BigListener listener = new BigListener(textIO.getTextTerminal(), kit);
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(" ");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read("listen");
             switch (choice) {
                 case START:
                     listener.start();
