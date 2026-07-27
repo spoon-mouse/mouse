@@ -20,6 +20,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static com.mouse.util.Spoon.getWalletAppKit;
@@ -37,10 +38,14 @@ public class LaunchScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        CREATE, LOAD, RESTORE, EXIT
+        WALLET, RESTORE, EXIT
     }
 
     public static void main(String[] args){
+        launch();
+    }
+
+    public static void launch() {
         Runtime.getRuntime().addShutdownHook(new Thread(LaunchScreen::stop_kit));
         show();
     }
@@ -52,10 +57,7 @@ public class LaunchScreen {
         while(true) {
             Choice choice = textIO.newEnumInputReader(Choice.class).read("Spoon Mouse Apps");
             switch (choice) {
-                case CREATE:
-                    //get_walletName_password();
-                    break;
-                case LOAD:
+                case WALLET:
                     load_wallet();
                     break;
                 case RESTORE:
@@ -100,7 +102,15 @@ public class LaunchScreen {
     }
 
 
-    private static void load_wallet()  {
+    private static void load_wallet() {
+        terminal.println("Wallet list: ");
+
+        try {
+            Files.newDirectoryStream(Path.of("."), "*.wallet").forEach(i-> terminal.println(i.getFileName().toString()+" "));
+            terminal.println();
+        } catch (IOException e) {}
+
+
         walletName = get_wallet_name_from_gui();
         try{
             kit = getWalletAppKit(walletName, get_password_from_gui());
@@ -136,7 +146,6 @@ public class LaunchScreen {
             peerGroup.addPeerDiscovery(new DnsDiscovery(network));
             peerGroup.addWallet(wallet);
 
-
             DownloadTracker listener = new DownloadTracker(terminal);
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
@@ -153,7 +162,6 @@ public class LaunchScreen {
             System.out.println(e);
             terminal.println(e.getMessage());
         }
-
     }
 
     private static String get_seed_from_gui() {

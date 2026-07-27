@@ -1,5 +1,7 @@
 package com.mouse;
 
+import com.mouse.cmd.txtio.LaunchScreen;
+
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
@@ -10,11 +12,7 @@ public class Mouse {
 
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> System.out.println("Shutdown")));
-        System.out.println("press return to exit");
-        System.in.read();
-        System.out.println("await termination");
+        LaunchScreen.launch();
     }
 
 }
