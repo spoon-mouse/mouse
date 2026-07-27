@@ -1,5 +1,6 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.listener.DownloadTracker;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -118,12 +119,10 @@ public class LaunchScreen {
         Network network = BitcoinNetwork.TESTNET;
         NetworkParameters params = NetworkParameters.of(network);
 
-
         String seed_txt = get_seed_from_gui();
         DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
 
         walletName=get_wallet_name_from_gui();
-        //noinspection SpellCheckingInspection
         try {
             //ScriptType.P2WPKH or ScriptType.P2PKH.  ?
             Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2PKH);
@@ -138,43 +137,11 @@ public class LaunchScreen {
             peerGroup.addWallet(wallet);
 
 
-            DownloadProgressTracker listener = new DownloadProgressTracker() {
-                private long count=0;
-                private long chainSize = Long.MAX_VALUE;
-                private boolean first=true;
-                @Override
-                public void onChainDownloadStarted(Peer peer, int blocksLeft) {
-                    if(first){
-                        terminal.println("Downloading chain: "+blocksLeft+" blocks...");
-                        chainSize=blocksLeft;
-                        first=false;
-                    }
-
-                    if(blocksLeft==0){
-                        this.notifyAll();
-                    }
-                }
-
-                @Override
-                public void onBlocksDownloaded(Peer peer, Block block, @Nullable FilteredBlock filteredBlock, int blocksLeft) {
-                    count++;
-
-                    if(count%100000==0){
-                        double pct = ((double) count /chainSize) * 100;
-                        terminal.println("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
-                    }
-                }
-
-                @Override
-                public void doneDownload() {
-                    terminal.println("Blockchain download complete");
-                }
-            };
-
+            DownloadTracker listener = new DownloadTracker(terminal);
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
 
-            terminal.println("Restoring from seed will take some time...");
+            terminal.println("Restoring from seed...");
             listener.await();
 
             wallet.saveToFile(new File(walletName+".wallet") );
