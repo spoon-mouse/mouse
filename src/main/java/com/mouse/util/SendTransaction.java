@@ -11,6 +11,8 @@ import org.bitcoinj.wallet.Wallet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static com.mouse.cmd.txtio.WalletScreen.BAD_WALLET_DECRYPTION;
+
 public class SendTransaction {
 
     private WalletAppKit kit;
@@ -44,7 +46,14 @@ public class SendTransaction {
         sendRequest.feePerKb = fee;
 
         try {
-            wallet.decrypt(password);
+            if(wallet.isEncrypted()) {
+                try {
+                    wallet.decrypt(password);
+                }catch (Wallet.BadWalletEncryptionKeyException e){
+                    throw new Exception(BAD_WALLET_DECRYPTION);
+                }
+            }
+
             wallet.completeTx(sendRequest);
             if(!wallet.isEncrypted()){
                 wallet.encrypt(password);

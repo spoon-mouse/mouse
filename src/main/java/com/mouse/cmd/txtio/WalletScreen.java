@@ -8,6 +8,7 @@ import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.crypto.KeyCrypterException;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
+import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 
 public class WalletScreen {
 
+    public static final String BAD_WALLET_DECRYPTION = "ERROR INVALID PASSWORD: bad wallet decryption";
     private static WalletAppKit kit;
 
     private static String walletName;
@@ -24,7 +26,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, TXNS, INFO, LISTEN, SEED, BACK, EXIT;
+        SEND, RECIVE, TXNS, INFO, LISTEN, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -48,6 +50,9 @@ public class WalletScreen {
                 case INFO:
                     show_wallet_info();
                     break;
+                case PASSWORD:
+                    PasswordScreen.show(walletName, kit.wallet());
+                    break;
                 case SEED:
                     show_wallet_seed();
                     break;
@@ -57,6 +62,28 @@ public class WalletScreen {
                     System.exit(0);
             }
         }
+    }
+
+    private static void change_password() {
+        final Wallet wallet = kit.wallet();
+        terminal.println("CHANGE PASSWORD for wallet: "+walletName);
+
+        if(wallet.isEncrypted()){
+            try {
+                terminal.print("OLD PASSWORD: ");
+                wallet.decrypt(get_password_from_gui());
+
+                terminal.print("NEW PASSWORD: ");
+                wallet.encrypt(get_password_from_gui());
+            }catch (Wallet.BadWalletEncryptionKeyException e){
+                terminal.println(BAD_WALLET_DECRYPTION);
+            }
+        }else{
+            terminal.println("wallet not encrypted:");
+            terminal.print("NEW PASSWORD: ");
+            wallet.encrypt(get_password_from_gui());
+        }
+        terminal.println("encrypted:");
     }
 
     private static void show_wallet_info() {
@@ -72,27 +99,23 @@ public class WalletScreen {
     }
 
     private static void show_wallet_seed() throws IOException {
-        terminal.println("WARN showing seed in plain text!");
+        terminal.println("WARN showing SEED in plain text wallet: "+walletName);
         CharSequence password=null;
+        final Wallet wallet = kit.wallet();
         try {
-            if(kit.wallet().isEncrypted()){
+            if(wallet.isEncrypted()){
                 password = get_password_from_gui();
-                kit.wallet().decrypt(password);
+                wallet.decrypt(password);
             }
-
-            DeterministicSeed deterministicSeed = kit.wallet().getKeyChainSeed();
+            DeterministicSeed deterministicSeed = wallet.getKeyChainSeed();
             String seed = deterministicSeed.getMnemonicString();
             terminal.println(seed);
             seed=null;
-        }catch (Exception e){
-            if( e instanceof KeyCrypterException.InvalidCipherText){
-                terminal.println("Could not decrypt seed: invalid password");
-            }else{
-                terminal.println(e.getMessage());
-            }
+        }catch (Wallet.BadWalletEncryptionKeyException e){
+            terminal.println(BAD_WALLET_DECRYPTION);
         }finally {
-            if(!kit.wallet().isEncrypted()){
-                kit.wallet().encrypt(password);
+            if(!wallet.isEncrypted()){
+                wallet.encrypt(password);
                 password=null;
             }
         }

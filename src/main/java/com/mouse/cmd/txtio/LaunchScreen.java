@@ -32,7 +32,7 @@ public class LaunchScreen {
     private static String walletName=null;
 
     private static final String  DEFAULT_WALLET_NAME = "wallet";
-    private static final String  DEFAULT_PASSWORD = "wallet.pass";
+    private static final String  DEFAULT_PASSWORD = "wallet.password";
 
     private static TextIO textIO;
     private static TextTerminal terminal;
@@ -81,16 +81,11 @@ public class LaunchScreen {
     }
 
 
-    public static CharSequence get_password_from_gui() throws IOException{
+    public static CharSequence get_password_from_gui() {
         CharSequence password = textIO.newStringInputReader()
                                         .withDefaultValue(DEFAULT_PASSWORD)
                                         .withInputMasking(true)
                                         .read("password:");
-
-        //QUICK HACK
-        if(password.equals(DEFAULT_PASSWORD)){
-            password = Files.readString(Paths.get(DEFAULT_PASSWORD));
-        }
 
         return password;
     }
@@ -103,13 +98,8 @@ public class LaunchScreen {
 
 
     private static void load_wallet() {
-        terminal.println("Wallet list: ");
 
-        try {
-            Files.newDirectoryStream(Path.of("."), "*.wallet").forEach(i-> terminal.println(i.getFileName().toString()+" "));
-            terminal.println();
-        } catch (IOException e) {}
-
+        show_found_wallets();
 
         walletName = get_wallet_name_from_gui();
         try{
@@ -121,8 +111,24 @@ public class LaunchScreen {
         }
     }
 
+    private static void show_found_wallets() {
+        try {
+            terminal.print("found wallets: "+get_string_of_found_wallet_file_names());
+            terminal.println();
+        } catch (IOException e) {}
+    }
 
-
+    private static String get_string_of_found_wallet_file_names() throws IOException {
+        var ref = new Object() {
+            String line = new String();
+        };
+        Files.newDirectoryStream(Path.of("."), "*.wallet").forEach(i-> {
+            String f = i.getFileName().toString();
+            f=f.substring(0, f.length() - 7);
+            ref.line = ref.line+f+" ";
+        });
+        return ref.line;
+    }
 
 
     private static void restore_from_seed() {
