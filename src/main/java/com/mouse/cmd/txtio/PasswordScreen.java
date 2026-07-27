@@ -34,7 +34,7 @@ public class PasswordScreen {
         terminal = textIO.getTextTerminal();
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("Password for wallet "+walletName);
+            Choice choice = textIO.newEnumInputReader(Choice.class).read("wallet ("+walletName+")");
             switch (choice) {
                 case ADD:
                     add();
@@ -70,7 +70,16 @@ public class PasswordScreen {
         if (wallet.isEncrypted()) {
             terminal.println("wallet: is encrypted");
         }else {
-            wallet.encrypt(get_password_from_gui());
+            CharSequence p1 = get_password_from_gui();
+            terminal.print("repeat ");
+            CharSequence p2 = get_password_from_gui();
+
+            if(CharSequence.compare(p1, p2)==0){
+                wallet.encrypt(p1);
+                terminal.println("encrypted");
+            }else{
+                terminal.println("new password's did not match");
+            }
         }
     }
 
@@ -80,6 +89,7 @@ public class PasswordScreen {
         }else {
             try {
                 wallet.decrypt(get_password_from_gui());
+                terminal.println("decrypted");
             }catch (Wallet.BadWalletEncryptionKeyException e){
                 terminal.println(BAD_WALLET_DECRYPTION);
             }
@@ -90,9 +100,23 @@ public class PasswordScreen {
         if(wallet.isEncrypted()){
             try {
                 terminal.print("OLD ");
-                wallet.decrypt(get_password_from_gui());
+                CharSequence old = get_password_from_gui();
+
                 terminal.print("NEW ");
-                wallet.encrypt(get_password_from_gui());
+                CharSequence p1 = get_password_from_gui();
+                terminal.print("repeat NEW ");
+                CharSequence p2 = get_password_from_gui();
+
+                if(CharSequence.compare(p1, p2)!=0) {
+                    terminal.println("new password's did not match");
+                    return;
+                }
+
+                wallet.decrypt(old);
+
+                wallet.encrypt(p1);
+                terminal.println("encrypted");
+
             }catch (Wallet.BadWalletEncryptionKeyException e){
                 terminal.println(BAD_WALLET_DECRYPTION);
             }

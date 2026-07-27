@@ -13,6 +13,8 @@ import java.util.concurrent.ExecutionException;
 
 import static com.mouse.cmd.txtio.WalletScreen.BAD_WALLET_DECRYPTION;
 
+import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
+
 public class SendTransaction {
 
     private WalletAppKit kit;
@@ -41,13 +43,16 @@ public class SendTransaction {
         address = wallet.parseAddress(info.address());
     }
 
-    public Transaction complete_txn(CharSequence password) throws Exception {
+    public Transaction complete_txn() throws Exception {
         sendRequest = SendRequest.to(address, amount);
         sendRequest.feePerKb = fee;
 
+        final boolean walletEncrypted_at_start = wallet.isEncrypted();
+        CharSequence password=null;
         try {
-            if(wallet.isEncrypted()) {
+            if(walletEncrypted_at_start) {
                 try {
+                    password=get_password_from_gui();
                     wallet.decrypt(password);
                 }catch (Wallet.BadWalletEncryptionKeyException e){
                     throw new Exception(BAD_WALLET_DECRYPTION);
@@ -55,7 +60,7 @@ public class SendTransaction {
             }
 
             wallet.completeTx(sendRequest);
-            if(!wallet.isEncrypted()){
+            if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
             }
         } catch (InsufficientMoneyException | Wallet.DustySendRequested e) {
@@ -70,7 +75,7 @@ public class SendTransaction {
             throw new Exception(e);
 
         }finally {
-            if(!wallet.isEncrypted()){
+            if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
             }
         }
@@ -79,10 +84,9 @@ public class SendTransaction {
     }
 
 
-    public TransactionBroadcast broadCast(int minConnections){
+    public void broadCast( ){
         PeerGroup peerGroup = kit.peerGroup();
-        transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx, minConnections, true);
-        return transactionBroadcast;
+        transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx, 5, true);
     }
 
     public void awaitBroadCasted() throws ExecutionException, InterruptedException {

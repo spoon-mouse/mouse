@@ -5,7 +5,6 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.core.PeerGroup;
-import org.bitcoinj.crypto.KeyCrypterException;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
@@ -45,7 +44,7 @@ public class WalletScreen {
                     recive();
                     break;
                 case TXNS:
-                    TransactionHistoryScreen.show(walletName, kit.wallet());
+                    WalletHistoryScreen.show(walletName, kit.wallet());
                     break;
                 case INFO:
                     show_wallet_info();
@@ -99,9 +98,12 @@ public class WalletScreen {
     }
 
     private static void show_wallet_seed() throws IOException {
-        terminal.println("WARN showing SEED in plain text wallet: "+walletName);
+        terminal.println("WARN showing SEED in plain text:");
+
         CharSequence password=null;
         final Wallet wallet = kit.wallet();
+        final boolean walletEncrypted_at_start = wallet.isEncrypted();
+
         try {
             if(wallet.isEncrypted()){
                 password = get_password_from_gui();
@@ -114,7 +116,7 @@ public class WalletScreen {
         }catch (Wallet.BadWalletEncryptionKeyException e){
             terminal.println(BAD_WALLET_DECRYPTION);
         }finally {
-            if(!wallet.isEncrypted()){
+            if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
                 password=null;
             }

@@ -9,10 +9,10 @@ import org.bitcoinj.wallet.Wallet;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.mouse.util.Spoon.*;
+import static com.mouse.util.TxnTable.*;
 
 
-public class TransactionHistoryScreen {
+public class WalletHistoryScreen {
 
     private static TextIO textIO;
     private static TextTerminal terminal;

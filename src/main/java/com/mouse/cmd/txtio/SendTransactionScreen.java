@@ -1,14 +1,16 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.util.AmountType;
 import com.mouse.util.SendTransaction;
 import com.mouse.util.SendTxnInfo;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.kits.WalletAppKit;
 
-import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
+
 
 
 public class SendTransactionScreen {
@@ -33,20 +35,31 @@ public class SendTransactionScreen {
         try{
             sendTransaction.init(info);
 
-            Transaction txn = sendTransaction.complete_txn(get_password_from_gui());
-
+            Transaction txn = sendTransaction.complete_txn();
             String id = txn.getTxId().toString();
-            long absVal=Math.abs( txn.getValue(kit.wallet()).getValue() );
-            long fee = txn.getFee().getValue();
-            long amount = absVal - fee;
-            long total = amount+fee;
-            terminal.println("transaction id: "+id+" sending "+amount+" fee: "+fee+" total: "+total);
 
-            sendTransaction.broadCast(3);
+            long value = txn.getValue(kit.wallet()).getValue();
+            long fee = txn.getFee().getValue();
+            long fromMe=txn.getValueSentFromMe(kit.wallet()).getValue();
+            long toMe=txn.getValueSentToMe(kit.wallet()).getValue();
+
+            AmountType txInfo = AmountType.get(fromMe, toMe, fee, value);
+
+            terminal.println("transaction: "+id+" "+txInfo.type()+" "+txInfo.amount() +" fee: "+fee+" total: "+txInfo.total());
+
+            terminal.println("broadcasting...");
+            final PeerGroup peerGroup = kit.peerGroup();
+            int min = peerGroup.getMinBroadcastConnections();
+            int max = peerGroup.getMaxConnections();
+            int now = peerGroup.numConnectedPeers();
+            terminal.println("min cast connections: "+min+" max connections: "+max+" connected: "+now);
+
+            sendTransaction.broadCast();
             sendTransaction.awaitBroadCasted();
-            terminal.println("transaction broadcast: ");
-            sendTransaction.awaitRelayed();
-            terminal.println("transaction relayed: ");
+            terminal.println("done: ");
+
+            //sendTransaction.awaitRelayed();
+            //terminal.println("transaction relayed: ");
 
         }catch (Exception e){
             System.out.println(e);

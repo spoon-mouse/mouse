@@ -5,10 +5,8 @@ import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
-import org.bitcoinj.base.Network;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.store.BlockStore;
@@ -16,17 +14,21 @@ import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import static com.mouse.util.Spoon.getWalletAppKit;
 
 
 public class LaunchScreen {
+
+    public static final Context context = new Context();
+
+    public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
+    public static final NetworkParameters netParams = NetworkParameters.of(network);
+
+    public static final String walletDirStr = ".";
+    public static final File walletDir = new File(walletDirStr);
 
     private static WalletAppKit kit=null;
     private static String walletName=null;
@@ -55,7 +57,7 @@ public class LaunchScreen {
         terminal = textIO.getTextTerminal();
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("Spoon Mouse Apps");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read("Spoon Mouse BTC");
             switch (choice) {
                 case WALLET:
                     load_wallet();
@@ -82,18 +84,16 @@ public class LaunchScreen {
 
 
     public static CharSequence get_password_from_gui() {
-        CharSequence password = textIO.newStringInputReader()
+        return textIO.newStringInputReader()
                                         .withDefaultValue(DEFAULT_PASSWORD)
                                         .withInputMasking(true)
-                                        .read("password:");
-
-        return password;
+                                        .read("password");
     }
 
     public static String get_wallet_name_from_gui() {
         return textIO.newStringInputReader()
                 .withDefaultValue(DEFAULT_WALLET_NAME)
-                .read("name:");
+                .read("wallet name");
     }
 
 
@@ -103,7 +103,7 @@ public class LaunchScreen {
 
         walletName = get_wallet_name_from_gui();
         try{
-            kit = getWalletAppKit(walletName, get_password_from_gui());
+            kit = WalletAppKit.launch(network, walletDir, walletName);
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
@@ -122,7 +122,7 @@ public class LaunchScreen {
         var ref = new Object() {
             String line = new String();
         };
-        Files.newDirectoryStream(Path.of("."), "*.wallet").forEach(i-> {
+        Files.newDirectoryStream(Path.of(walletDirStr), "*.wallet").forEach(i-> {
             String f = i.getFileName().toString();
             f=f.substring(0, f.length() - 7);
             ref.line = ref.line+f+" ";
@@ -132,8 +132,7 @@ public class LaunchScreen {
 
 
     private static void restore_from_seed() {
-        Network network = BitcoinNetwork.TESTNET;
-        NetworkParameters params = NetworkParameters.of(network);
+
 
         String seed_txt = get_seed_from_gui();
         DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
@@ -144,7 +143,7 @@ public class LaunchScreen {
             Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2PKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(params, new File(walletName+".spvchain"));
+            BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+".spvchain"));
 
             //wallet in the chain constructor
             BlockChain chain = new BlockChain(network, wallet, blockStore);
