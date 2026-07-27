@@ -147,7 +147,6 @@ public class LaunchScreen {
 
         walletName=get_wallet_name_from_gui();
         try {
-            //ScriptType.P2WPKH or ScriptType.P2PKH.  ?
             Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
@@ -167,10 +166,8 @@ public class LaunchScreen {
             listener.await();
 
             wallet.saveToFile(new File(walletName+".wallet") );
-            terminal.println(wallet.toString());
-
             terminal.println("Restored: "+walletName);
-
+            terminal.println("balance: "+wallet.getBalance().toFriendlyString());
         } catch (Exception e) {
             System.out.println(e);
             terminal.println(e.getMessage());
