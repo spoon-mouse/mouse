@@ -73,14 +73,14 @@ public class SendTransactionScreen {
         }
 
         long amount = textIO.newLongInputReader()
-                .withMinVal(1l)
+                .withMinVal(1L)
                 .withInputTrimming(true)
                 .read("amount (sats):");
 
         long fee = textIO.newLongInputReader()
-                .withDefaultValue(1l)
-                .withMinVal(1l)
-                .withMaxVal(99l)
+                .withDefaultValue(1L)
+                .withMinVal(1L)
+                .withMaxVal(99L)
                 .withInputTrimming(true)
                 .read("fee (sats per vbyte):");
 

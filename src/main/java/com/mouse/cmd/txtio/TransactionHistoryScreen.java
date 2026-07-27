@@ -17,10 +17,10 @@ public class TransactionHistoryScreen {
     private static TextIO textIO;
     private static TextTerminal terminal;
 
-    private static List<ConfListner> confListners = new ArrayList();
+    private static final List<ConfListner> confListners = new ArrayList<>();
 
     public enum Choice {
-        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, STOP_TRACKING, BACK, EXIT;
+        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, STOP_TRACKING, BACK, EXIT
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -32,12 +32,10 @@ public class TransactionHistoryScreen {
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Transactions: ");
             switch (choice) {
                 case SIMPLE_TABLE:
-                    String table = simple_transation_table(wallet);
-                    terminal.println(table);
+                    terminal.println( simple_transation_table(wallet) );
                     break;
                 case EXPANDED_TABLE:
-                    table = expanded_transation_table(wallet);
-                    terminal.println(table);
+                    terminal.println( expanded_transation_table(wallet) );
                     break;
                 case VIEW_TRANSACTION:
                     view_a_transaction(wallet);

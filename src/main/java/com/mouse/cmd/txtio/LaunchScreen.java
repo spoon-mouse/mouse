@@ -36,13 +36,11 @@ public class LaunchScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        CREATE, LOAD, RESTORE, EXIT;
+        CREATE, LOAD, RESTORE, EXIT
     }
 
     public static void main(String[] args){
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            stop_kit();
-        }));
+        Runtime.getRuntime().addShutdownHook(new Thread(LaunchScreen::stop_kit));
         show();
     }
 
@@ -125,6 +123,7 @@ public class LaunchScreen {
         DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "");
 
         walletName=get_wallet_name_from_gui();
+        //noinspection SpellCheckingInspection
         try {
             //ScriptType.P2WPKH or ScriptType.P2PKH.  ?
             Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2PKH);
@@ -147,8 +146,12 @@ public class LaunchScreen {
                 public void onChainDownloadStarted(Peer peer, int blocksLeft) {
                     if(first){
                         terminal.println("Downloading chain: "+blocksLeft+" blocks...");
-                        chainSize =blocksLeft;
+                        chainSize=blocksLeft;
                         first=false;
+                    }
+
+                    if(blocksLeft==0){
+                        this.notifyAll();
                     }
                 }
 
@@ -157,7 +160,7 @@ public class LaunchScreen {
                     count++;
 
                     if(count%100000==0){
-                        double pct = (count/blocksLeft) * 100;
+                        double pct = ((double) count /chainSize) * 100;
                         terminal.println("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
                     }
                 }
@@ -171,13 +174,13 @@ public class LaunchScreen {
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
 
-            terminal.println("Restoring from seed...");
+            terminal.println("Restoring from seed will take some time...");
             listener.await();
 
             wallet.saveToFile(new File(walletName+".wallet") );
             terminal.println(wallet.toString());
 
-            //WalletScreen.show(walletName, kit);
+            terminal.println("Restored: "+walletName);
 
         } catch (Exception e) {
             System.out.println(e);
