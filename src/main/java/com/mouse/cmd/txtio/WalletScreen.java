@@ -1,8 +1,7 @@
 package com.mouse.cmd.txtio;
 
-import org.beryx.textio.TextIO;
-import org.beryx.textio.TextIoFactory;
-import org.beryx.textio.TextTerminal;
+import com.mouse.listener.BigListener;
+import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.kits.WalletAppKit;
@@ -54,6 +53,9 @@ public class WalletScreen {
                     break;
                 case SEED:
                     show_wallet_seed();
+                    break;
+                case LISTEN:
+                    ListenScreen.show(kit);
                     break;
                 case BACK:
                     return;
