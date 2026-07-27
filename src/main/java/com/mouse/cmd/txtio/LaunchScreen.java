@@ -1,5 +1,7 @@
 package com.mouse.cmd.txtio;
 
+import com.diogonunes.jcolor.Ansi;
+import com.diogonunes.jcolor.Attribute;
 import com.mouse.listener.DownloadTracker;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
@@ -19,6 +21,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+
+import static com.diogonunes.jcolor.Ansi.colorize;
 
 
 public class LaunchScreen {
@@ -56,6 +60,7 @@ public class LaunchScreen {
     public static void show(){
         textIO = TextIoFactory.getTextIO();
         terminal = textIO.getTextTerminal();
+
 
         while(true) {
             Choice choice = textIO.newEnumInputReader(Choice.class).read("Spoon Mouse BTC");
@@ -108,6 +113,7 @@ public class LaunchScreen {
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
+            e.printStackTrace();
             terminal.println(e.getMessage());
         }
     }
@@ -152,7 +158,6 @@ public class LaunchScreen {
 
             BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+".spvchain"));
 
-            //wallet in the chain constructor
             BlockChain chain = new BlockChain(network, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(network, chain);
             peerGroup.addPeerDiscovery(new DnsDiscovery(network));
