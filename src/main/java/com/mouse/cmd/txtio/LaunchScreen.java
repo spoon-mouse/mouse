@@ -36,7 +36,7 @@ public class LaunchScreen {
     public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
     public static final NetworkParameters netParams = NetworkParameters.of(network);
     public static final String walletDirStr = "wallet";
-    public static final Path WALLET_DIR_PATH = Paths.get(walletDirStr);
+    public static final Path WALLET_DIR_PATH = Path.of(walletDirStr);
     public static final File walletDir = new File(walletDirStr);
     public static final String WALLET_FILE_POST_FIX = ".wallet";
     public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";
@@ -93,10 +93,10 @@ public class LaunchScreen {
         }
     }
 
-    private static List<WalletNameId> listOfWallets(){
+    public static List<WalletNameId> listOfWallets(){
         List<WalletNameId> wallets = new ArrayList<>();
         try {
-            Files.newDirectoryStream(Path.of(walletDirStr),"*"+WALLET_FILE_POST_FIX).forEach(path -> {
+            Files.newDirectoryStream(WALLET_DIR_PATH,"*"+WALLET_FILE_POST_FIX).forEach(path -> {
                 try {
                     wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile()), path.toFile()));
                 } catch (UnreadableWalletException e) {}

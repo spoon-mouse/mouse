@@ -86,7 +86,8 @@ public class SendTransaction {
 
     public void broadCast( ){
         PeerGroup peerGroup = kit.peerGroup();
-        transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx, 5, true);
+        transactionBroadcast = peerGroup.broadcastTransaction(sendRequest.tx);
+        transactionBroadcast.setProgressCallback(progress -> System.out.println("broadcast txn id:"+sendRequest.tx.getTxId()+" progress: "+progress));
     }
 
     public void awaitBroadCasted() throws ExecutionException, InterruptedException {
@@ -98,5 +99,6 @@ public class SendTransaction {
         CompletableFuture<TransactionBroadcast> relay = transactionBroadcast.awaitRelayed();
         relay.get();
     }
+
 
 }
