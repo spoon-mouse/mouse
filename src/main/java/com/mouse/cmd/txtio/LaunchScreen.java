@@ -1,28 +1,36 @@
 package com.mouse.cmd.txtio;
 
-import com.diogonunes.jcolor.Ansi;
-import com.diogonunes.jcolor.Attribute;
 import com.mouse.listener.DownloadTracker;
+import com.mouse.util.WalletNameId;
+import de.vandermeer.asciitable.AsciiTable;
+import de.vandermeer.asciitable.CWC_LongestWord;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.DeterministicSeed;
+import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class LaunchScreen {
@@ -49,7 +57,7 @@ public class LaunchScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        WALLET, RESTORE, EXIT
+        WALLET, RESTORE, DIGEST, EXIT
     }
 
     public static void main(String[] args){
@@ -78,12 +86,58 @@ public class LaunchScreen {
                 case RESTORE:
                     restore_from_seed();
                     break;
+                case DIGEST:
+                    show_wallet_digest();
+                    break;
                 case EXIT:
                     System.exit(0);
             }
             stop_kit();
         }
     }
+
+    private static List<WalletNameId> listOfWallets(){
+        List<WalletNameId> wallets = new ArrayList<>();
+        try {
+            Files.newDirectoryStream(Path.of(walletDirStr),"*"+WALLET_FILE_POST_FIX).forEach(path -> {
+                try {
+                    wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile()), path.toFile()));
+                } catch (UnreadableWalletException e) {}
+            });
+        }catch (IOException e) {}
+        return wallets;
+    }
+
+    public static Map<String, List<WalletNameId>> mapById(List<WalletNameId> l){
+        return l.stream().collect(Collectors.groupingBy(WalletNameId::id));
+    }
+
+    private static List<WalletNameId> sortBySeenBlocks(List<WalletNameId> wallets){
+        wallets.sort(Comparator.comparing(WalletNameId::getLastBlockSeenHeight));
+        return wallets;
+    }
+
+    public static Map<String, List<WalletNameId>> getWalletMap(){
+        return mapById(sortBySeenBlocks(listOfWallets()));
+    }
+
+    private static void show_wallet_digest(){
+
+        AsciiTable table = new AsciiTable();
+        table.getRenderer().setCWC(new CWC_LongestWord());
+        table.addRule();
+        table.addRow("name", "encrypted", "balance", "block hight", "id");
+        table.addRule();
+
+        getWalletMap().values().stream().flatMap(Collection::stream).forEach(i -> {
+            table.addRow(i.name(), i.wallet().isEncrypted(), i.wallet().getBalance().getValue(), i.wallet().getLastBlockSeenHeight(), i.id());
+        });
+
+        table.addRule();
+        terminal.println(table.render());
+    }
+
+
 
     private static void stop_kit() {
         if(kit!=null){
@@ -132,31 +186,40 @@ public class LaunchScreen {
         }
     }
 
+
     private static void show_found_wallets() {
-        String walletFiles = get_string_of_found_wallet_file_names();
+
+
+/*
             if(walletFiles.isEmpty()){
                 return;
             }else {
-                terminal.print("wallets: "+get_string_of_found_wallet_file_names());
+                terminal.print("wallets: "+ get_string_of_found_wallet_file_names_without_walletFilePostFix());
                 terminal.println();
             }
+
+ */
     }
 
-    private static String get_string_of_found_wallet_file_names() {
-        var ref = new Object() {
-            String line = new String("");
-        };
-        try {
-            Files.newDirectoryStream(Path.of(walletDirStr), "*" + WALLET_FILE_POST_FIX).forEach(i -> {
-                String f = i.getFileName().toString();
-                f = f.substring(0, f.length() - 7);
-                ref.line = ref.line + f + " ";
-            });
-        }catch (IOException e){
-            System.out.println(e);
+
+    public List<String> listFilesUsingFilesList(String dir) throws IOException {
+        try (Stream<Path> stream = Files.list(Paths.get(dir))) {
+            return stream.filter(f -> f.endsWith("."+WALLET_FILE_POST_FIX)).map(Path::getFileName)
+                    .map(Path::toString)
+                    .collect(Collectors.toList());
         }
-        return ref.line;
     }
+
+    /*
+    private static String get_string_of_found_wallet_file_names_without_walletFilePostFix() {
+        try {
+            Files.newDirectoryStream(Path.of(walletDirStr),"*"+WALLET_FILE_POST_FIX).forEach(p -> {
+                String f = p.getFileName().toString();
+                f = f.substring(0, f.length() - WALLET_FILE_POST_FIX.length());
+            });
+        }catch (IOException e){}
+    }
+     */
 
 
     private static void restore_from_seed() {
@@ -169,8 +232,6 @@ public class LaunchScreen {
         }else{
             seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
         }
-
-
 
         walletName=get_wallet_name_from_gui();
         try {
