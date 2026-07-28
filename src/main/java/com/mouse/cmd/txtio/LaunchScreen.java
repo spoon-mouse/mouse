@@ -108,6 +108,8 @@ public class LaunchScreen {
         return wallets;
     }
 
+
+
     public static Map<String, List<WalletNameId>> mapById(List<WalletNameId> l){
         return l.stream().collect(Collectors.groupingBy(WalletNameId::id));
     }
@@ -172,9 +174,8 @@ public class LaunchScreen {
 
 
     private static void load_wallet() {
-
-        show_found_wallets();
-
+        terminal.print("wallets: "+ filesString());
+        terminal.println();
         walletName = get_wallet_name_from_gui();
         try{
             kit = WalletAppKit.launch(network, walletDir, walletName);
@@ -186,21 +187,13 @@ public class LaunchScreen {
     }
 
 
-    private static void show_found_wallets() {
+    public static String filesString() {
         try {
-            terminal.print("wallets: "+ filesString());
-            terminal.println();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    public static String filesString() throws IOException {
-       Stream<Path> stream = Files.list(WALLET_DIR_PATH);
-       return stream.filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
-               .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
-               .sorted().collect(Collectors.joining(" "));
+            return Files.list(WALLET_DIR_PATH).filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
+                    .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
+                    .sorted().collect(Collectors.joining(" "));
+        } catch (IOException e) {}
+        return "";
     }
 
 
