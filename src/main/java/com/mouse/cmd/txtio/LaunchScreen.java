@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.diogonunes.jcolor.Ansi.colorize;
 
@@ -38,11 +40,12 @@ public class LaunchScreen {
     public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
     public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
+    public static final int WALLET_CLOSE_TIMEOUT_SECONDS = 60;
 
     private static WalletAppKit kit=null;
     private static String walletName=null;
 
-    private static final String  DEFAULT_WALLET_NAME = "wallet";
+    private static final String  DEFAULT_WALLET_NAME = "w1";
     private static final String  DEFAULT_PASSWORD = "wallet.password";
 
     private static TextIO textIO;
@@ -86,9 +89,17 @@ public class LaunchScreen {
         if(kit!=null){
             kit.stopAsync();
             terminal.println("closing: " + walletName);
-            kit.awaitTerminated();
-            terminal.println("closed: " + walletName);
-            kit=null;
+            try {
+                kit.awaitTerminated(WALLET_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                terminal.println("closed: " + walletName);
+            }catch(TimeoutException e) {
+                terminal.println("time out closing wallet: "+walletName+" after "+WALLET_CLOSE_TIMEOUT_SECONDS+" seconds");
+            }catch (IllegalStateException e){
+                terminal.println("ERROR closing wallet: "+walletName+" "+e.getMessage());
+                System.out.println(e);
+            }finally {
+                kit=null;
+            }
         }
     }
 
@@ -101,8 +112,7 @@ public class LaunchScreen {
     }
 
     public static String get_wallet_name_from_gui() {
-        return textIO.newStringInputReader()
-                .withDefaultValue(DEFAULT_WALLET_NAME)
+        return textIO.newStringInputReader().withDefaultValue(DEFAULT_WALLET_NAME).withInputTrimming(true)
                 .read("wallet name");
     }
 
@@ -123,21 +133,28 @@ public class LaunchScreen {
     }
 
     private static void show_found_wallets() {
-        try {
-            terminal.print("found wallets: "+get_string_of_found_wallet_file_names());
-            terminal.println();
-        } catch (IOException e) {}
+        String walletFiles = get_string_of_found_wallet_file_names();
+            if(walletFiles.isEmpty()){
+                return;
+            }else {
+                terminal.print("wallets: "+get_string_of_found_wallet_file_names());
+                terminal.println();
+            }
     }
 
-    private static String get_string_of_found_wallet_file_names() throws IOException {
+    private static String get_string_of_found_wallet_file_names() {
         var ref = new Object() {
-            String line = new String();
+            String line = new String("");
         };
-        Files.newDirectoryStream(Path.of(walletDirStr), "*"+WALLET_FILE_POST_FIX).forEach(i-> {
-            String f = i.getFileName().toString();
-            f=f.substring(0, f.length() - 7);
-            ref.line = ref.line+f+" ";
-        });
+        try {
+            Files.newDirectoryStream(Path.of(walletDirStr), "*" + WALLET_FILE_POST_FIX).forEach(i -> {
+                String f = i.getFileName().toString();
+                f = f.substring(0, f.length() - 7);
+                ref.line = ref.line + f + " ";
+            });
+        }catch (IOException e){
+            System.out.println(e);
+        }
         return ref.line;
     }
 

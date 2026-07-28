@@ -1,5 +1,6 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.listener.TerminalTxnCastListener;
 import com.mouse.util.AmountType;
 import com.mouse.util.SendTransaction;
 import com.mouse.util.SendTxnInfo;
@@ -52,15 +53,18 @@ public class SendTransactionScreen {
             int min = peerGroup.getMinBroadcastConnections();
             int max = peerGroup.getMaxConnections();
             int now = peerGroup.numConnectedPeers();
-            terminal.println("min cast connections: "+min+" max connections: "+max+" connected: "+now);
 
+            terminal.println("active peer connections: "+now);
+
+            TerminalTxnCastListener listener = new TerminalTxnCastListener(terminal, txn);
+            peerGroup.addOnTransactionBroadcastListener(listener);
             sendTransaction.broadCast();
             sendTransaction.awaitBroadCasted();
             terminal.println("done: ");
+            peerGroup.removeOnTransactionBroadcastListener(listener);
 
             //sendTransaction.awaitRelayed();
             //terminal.println("transaction relayed: ");
-
         }catch (Exception e){
             System.out.println(e);
             terminal.println(e.getMessage());
