@@ -81,7 +81,7 @@ public class WalletScreen {
         final PeerGroup peerGroup = kit.peerGroup();
         terminal.println("connected peers: "+peerGroup.numConnectedPeers());
         terminal.println("max connections: "+peerGroup.getMaxConnections());
-        terminal.println("nin connections for broadcast: "+peerGroup.getMinBroadcastConnections());
+        terminal.println("min connections for broadcast: "+peerGroup.getMinBroadcastConnections());
 
         final int height = kit.chain().getBestChainHeight();
         final Instant instant = kit.chain().estimateBlockTimeInstant(height);
