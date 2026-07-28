@@ -32,10 +32,10 @@ public class WalletHistoryScreen {
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Transactions: ");
             switch (choice) {
                 case SIMPLE_TABLE:
-                    terminal.println( simple_transation_table(wallet) );
+                    terminal.println( simple_transation_table(wallet.getTransactionsByTime(), wallet) );
                     break;
                 case EXPANDED_TABLE:
-                    terminal.println( expanded_transation_table(wallet) );
+                    terminal.println( expanded_transation_table(wallet.getTransactionsByTime(), wallet) );
                     break;
                 case VIEW_TRANSACTION:
                     view_a_transaction(wallet);

@@ -26,13 +26,12 @@ public class TxnTable {
         }
     }
 
-    public static String simple_transation_table(Wallet wallet) {
+    public static String simple_transation_table(List<Transaction> txns, Wallet wallet) {
         AsciiTable table = new AsciiTable();
         table.addRule();
         table.addRow("type", "amount", "fee");
         table.addRule();
 
-        List<Transaction> txns = wallet.getTransactionsByTime();
         txns.forEach( (tx)->{
             final long fromMe = tx.getValueSentFromMe(wallet).getValue();
             final long toMe = tx.getValueSentToMe(wallet).getValue();
@@ -50,7 +49,7 @@ public class TxnTable {
         return table.render()+System.lineSeparator()+"Transactions: "+txns.size()+" balance: "+wallet.getBalance().toFriendlyString();
     }
 
-    public static String expanded_transation_table(Wallet wallet) {
+    public static String expanded_transation_table(List<Transaction> txns, Wallet wallet) {
         AsciiTable table = new AsciiTable();
         table.getRenderer().setCWC(new CWC_LongestWord());
         table.setPaddingLeftRight(2);
@@ -58,7 +57,6 @@ public class TxnTable {
         table.addRow("id", "type", "amount", "fromMe", "toMe", "value", "fee", "confidenceType", "blockDepth");
         table.addRule();
 
-        List<Transaction> txns = wallet.getTransactionsByTime();
         txns.forEach( (tx)->{
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();

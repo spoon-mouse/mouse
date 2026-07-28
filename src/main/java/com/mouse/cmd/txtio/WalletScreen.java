@@ -4,15 +4,19 @@ import com.mouse.listener.BigListener;
 import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.core.PeerGroup;
+import org.bitcoinj.core.Transaction;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
+import static com.mouse.util.TxnTable.expanded_transation_table;
 
 
 public class WalletScreen {
@@ -25,7 +29,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, TXNS, INFO, LISTEN, PASSWORD, SEED, BACK, EXIT;
+        SEND, RECIVE, TXNS, PENDING, INFO, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -46,6 +50,9 @@ public class WalletScreen {
                 case TXNS:
                     WalletHistoryScreen.show(walletName, kit.wallet());
                     break;
+                case PENDING:
+                    show_pending();
+                    break;
                 case INFO:
                     show_wallet_info();
                     break;
@@ -55,9 +62,6 @@ public class WalletScreen {
                 case SEED:
                     show_wallet_seed();
                     break;
-                case LISTEN:
-                    ListenScreen.show(kit);
-                    break;
                 case BACK:
                     return;
                 case EXIT:
@@ -66,12 +70,18 @@ public class WalletScreen {
         }
     }
 
+    private static void show_pending() {
+        List<Transaction> pending = new ArrayList<>(kit.wallet().getPendingTransactions());
+        terminal.println(expanded_transation_table(pending, kit.wallet()));
+    }
+
     private static void show_wallet_info() {
         terminal.println(kit.wallet().toString());
 
         final PeerGroup peerGroup = kit.peerGroup();
         terminal.println("connected peers: "+peerGroup.numConnectedPeers());
         terminal.println("max connections: "+peerGroup.getMaxConnections());
+        terminal.println("nin connections for broadcast: "+peerGroup.getMinBroadcastConnections());
 
         final int height = kit.chain().getBestChainHeight();
         final Instant instant = kit.chain().estimateBlockTimeInstant(height);

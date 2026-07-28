@@ -9,9 +9,7 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.ScriptType;
-import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.store.BlockStore;
@@ -22,7 +20,6 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,7 +28,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class LaunchScreen {
@@ -39,7 +35,7 @@ public class LaunchScreen {
 
     public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
     public static final NetworkParameters netParams = NetworkParameters.of(network);
-    public static final String walletDirStr = ".";
+    public static final String walletDirStr = "wallet";
     public static final Path WALLET_DIR_PATH = Paths.get(walletDirStr);
     public static final File walletDir = new File(walletDirStr);
     public static final String WALLET_FILE_POST_FIX = ".wallet";
@@ -173,7 +169,7 @@ public class LaunchScreen {
 
 
     private static void load_wallet() {
-        terminal.print("wallets: "+ filesString());
+        terminal.print("wallets: "+ wallet_names_string());
         terminal.println();
         walletName = get_wallet_name_from_gui();
         try{
@@ -186,7 +182,7 @@ public class LaunchScreen {
     }
 
 
-    public static String filesString() {
+    public static String wallet_names_string() {
         try {
             return Files.list(WALLET_DIR_PATH).filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
                     .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))

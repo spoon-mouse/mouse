@@ -9,7 +9,7 @@ import org.bitcoinj.kits.WalletAppKit;
 
 public class ListenScreen {
     public enum Choice {
-        START, STOP, EXIT
+        START, STOP, BACK, EXIT;
     }
 
     public static void show(WalletAppKit kit){
@@ -23,6 +23,8 @@ public class ListenScreen {
                     break;
                 case STOP:
                     listener.stop();
+                    return;
+                case BACK:
                     return;
                 case EXIT:
                     System.exit(0);
