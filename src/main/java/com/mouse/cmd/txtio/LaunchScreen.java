@@ -50,7 +50,7 @@ public class LaunchScreen {
     private static WalletAppKit kit=null;
     private static String walletName=null;
 
-    private static final String  DEFAULT_WALLET_NAME = "w1";
+    private static final String  DEFAULT_WALLET_NAME = "wallet";
     private static final String  DEFAULT_PASSWORD = "wallet.password";
 
     private static TextIO textIO;
@@ -107,8 +107,6 @@ public class LaunchScreen {
         }catch (IOException e) {}
         return wallets;
     }
-
-
 
     public static Map<String, List<WalletNameId>> mapById(List<WalletNameId> l){
         return l.stream().collect(Collectors.groupingBy(WalletNameId::id));
