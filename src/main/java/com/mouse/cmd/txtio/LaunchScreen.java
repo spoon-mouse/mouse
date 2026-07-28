@@ -38,8 +38,8 @@ public class LaunchScreen {
 
     public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
     public static final NetworkParameters netParams = NetworkParameters.of(network);
-
     public static final String walletDirStr = ".";
+    public static final Path WALLET_DIR_PATH = Paths.get(walletDirStr);
     public static final File walletDir = new File(walletDirStr);
     public static final String WALLET_FILE_POST_FIX = ".wallet";
     public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";
@@ -181,45 +181,27 @@ public class LaunchScreen {
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
-            e.printStackTrace();
             terminal.println(e.getMessage());
         }
     }
 
 
     private static void show_found_wallets() {
-
-
-/*
-            if(walletFiles.isEmpty()){
-                return;
-            }else {
-                terminal.print("wallets: "+ get_string_of_found_wallet_file_names_without_walletFilePostFix());
-                terminal.println();
-            }
-
- */
-    }
-
-
-    public List<String> listFilesUsingFilesList(String dir) throws IOException {
-        try (Stream<Path> stream = Files.list(Paths.get(dir))) {
-            return stream.filter(f -> f.endsWith("."+WALLET_FILE_POST_FIX)).map(Path::getFileName)
-                    .map(Path::toString)
-                    .collect(Collectors.toList());
+        try {
+            terminal.print("wallets: "+ filesString());
+            terminal.println();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    /*
-    private static String get_string_of_found_wallet_file_names_without_walletFilePostFix() {
-        try {
-            Files.newDirectoryStream(Path.of(walletDirStr),"*"+WALLET_FILE_POST_FIX).forEach(p -> {
-                String f = p.getFileName().toString();
-                f = f.substring(0, f.length() - WALLET_FILE_POST_FIX.length());
-            });
-        }catch (IOException e){}
+
+    public static String filesString() throws IOException {
+       Stream<Path> stream = Files.list(WALLET_DIR_PATH);
+       return stream.filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
+               .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
+               .sorted().collect(Collectors.joining(" "));
     }
-     */
 
 
     private static void restore_from_seed() {
