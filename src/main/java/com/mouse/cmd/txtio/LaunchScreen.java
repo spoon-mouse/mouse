@@ -24,12 +24,9 @@ import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.diogonunes.jcolor.Ansi.colorize;
-
 
 public class LaunchScreen {
 
-    public static final Context context = new Context();
 
     public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
     public static final NetworkParameters netParams = NetworkParameters.of(network);
@@ -68,8 +65,11 @@ public class LaunchScreen {
         textIO = TextIoFactory.getTextIO();
         terminal = textIO.getTextTerminal();
 
-
         while(true) {
+
+            Context context = Context.getOrCreate();
+            Context.propagate(context);
+
             Choice choice = textIO.newEnumInputReader(Choice.class).read(APP_TITLE_LINE);
             switch (choice) {
                 case WALLET:
@@ -194,6 +194,10 @@ public class LaunchScreen {
             wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
             terminal.println("Restored: "+walletName);
             terminal.println("balance: "+wallet.getBalance().toFriendlyString());
+
+            peerGroup.stop();
+            blockStore.close();
+
         } catch (Exception e) {
             System.out.println(e);
             terminal.println(e.getMessage());

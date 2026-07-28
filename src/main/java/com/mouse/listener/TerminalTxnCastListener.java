@@ -10,7 +10,7 @@ public class TerminalTxnCastListener implements OnTransactionBroadcastListener {
     private TextTerminal terminal;
     private Transaction myTxn;
 
-    private int counter=1;
+    private int count=1;
 
     public TerminalTxnCastListener(TextTerminal terminal, Transaction txn){
         this.terminal=terminal;
@@ -19,10 +19,7 @@ public class TerminalTxnCastListener implements OnTransactionBroadcastListener {
 
     @Override
     public void onTransaction(Peer peer, Transaction t) {
-
-        if(myTxn.getTxId().equals( t.getTxId() )){
-            terminal.println("broadcast count: "+counter++);
-        }
-
+        terminal.println("broadcast "+count+": "+t.getTxId());
+        count++;
     }
 }

@@ -1,6 +1,7 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.TerminalTxnCastListener;
+import com.mouse.listener.WalletSentListener;
 import com.mouse.util.AmountType;
 import com.mouse.util.SendTransaction;
 import com.mouse.util.SendTxnInfo;
@@ -43,25 +44,28 @@ public class SendTransactionScreen {
             long fee = txn.getFee().getValue();
             long fromMe=txn.getValueSentFromMe(kit.wallet()).getValue();
             long toMe=txn.getValueSentToMe(kit.wallet()).getValue();
-
             AmountType txInfo = AmountType.get(fromMe, toMe, fee, value);
 
             terminal.println("transaction: "+id+" "+txInfo.type()+" "+txInfo.amount() +" fee: "+fee+" total: "+txInfo.total());
 
-            terminal.println("broadcasting...");
             final PeerGroup peerGroup = kit.peerGroup();
             int min = peerGroup.getMinBroadcastConnections();
-            int max = peerGroup.getMaxConnections();
             int now = peerGroup.numConnectedPeers();
 
-            terminal.println("active peer connections: "+now);
+            TerminalTxnCastListener castListener = new TerminalTxnCastListener(terminal, txn);
+            peerGroup.addOnTransactionBroadcastListener(castListener);
 
-            TerminalTxnCastListener listener = new TerminalTxnCastListener(terminal, txn);
-            peerGroup.addOnTransactionBroadcastListener(listener);
+            WalletSentListener sentListener = new WalletSentListener(terminal);
+            kit.wallet().addCoinsSentEventListener(sentListener);
+
+            terminal.println("broadcasting...("+now+"/"+min+")");
             sendTransaction.broadCast();
             sendTransaction.awaitBroadCasted();
-            terminal.println("done: ");
-            peerGroup.removeOnTransactionBroadcastListener(listener);
+            terminal.println("done:");
+
+            peerGroup.removeOnTransactionBroadcastListener(castListener);
+            kit.wallet().removeCoinsSentEventListener(sentListener);
+
 
             //sendTransaction.awaitRelayed();
             //terminal.println("transaction relayed: ");
