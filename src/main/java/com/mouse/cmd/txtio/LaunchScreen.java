@@ -34,6 +34,10 @@ public class LaunchScreen {
 
     public static final String walletDirStr = ".";
     public static final File walletDir = new File(walletDirStr);
+    public static final String WALLET_FILE_POST_FIX = ".wallet";
+    public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";
+    public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
+    public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
 
     private static WalletAppKit kit=null;
     private static String walletName=null;
@@ -63,7 +67,7 @@ public class LaunchScreen {
 
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("Spoon Mouse BTC");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(APP_TITLE_LINE);
             switch (choice) {
                 case WALLET:
                     load_wallet();
@@ -129,7 +133,7 @@ public class LaunchScreen {
         var ref = new Object() {
             String line = new String();
         };
-        Files.newDirectoryStream(Path.of(walletDirStr), "*.wallet").forEach(i-> {
+        Files.newDirectoryStream(Path.of(walletDirStr), "*"+WALLET_FILE_POST_FIX).forEach(i-> {
             String f = i.getFileName().toString();
             f=f.substring(0, f.length() - 7);
             ref.line = ref.line+f+" ";
@@ -156,7 +160,7 @@ public class LaunchScreen {
             Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+".spvchain"));
+            BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(network, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(network, chain);
@@ -170,7 +174,7 @@ public class LaunchScreen {
             terminal.println("Restoring from seed...");
             listener.await();
 
-            wallet.saveToFile(new File(walletName+".wallet") );
+            wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
             terminal.println("Restored: "+walletName);
             terminal.println("balance: "+wallet.getBalance().toFriendlyString());
         } catch (Exception e) {
@@ -184,7 +188,7 @@ public class LaunchScreen {
     }
 
     private static String get_seed_from_gui() {
-        return textIO.newStringInputReader().withInputTrimming(true).withPattern("^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$").read("12 word seed phrase:");
+        return textIO.newStringInputReader().withInputTrimming(true).withPattern(REGEX_12_WORDS).read("12 word seed phrase:");
     }
 
 }
