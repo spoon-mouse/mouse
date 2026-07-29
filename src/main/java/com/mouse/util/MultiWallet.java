@@ -43,12 +43,7 @@ import static java.util.stream.Collectors.toList;
 
 public class MultiWallet {
 
-
-    public static void main(String[] args){
-        go();
-    }
-
-    private static void go() {
+    public static void go() {
         TextIO textIO = TextIoFactory.getTextIO();
         TextTerminal terminal = textIO.getTextTerminal();
 
@@ -58,6 +53,11 @@ public class MultiWallet {
                 BlockChain chain = new BlockChain(network, blockStore);
                 PeerGroup peerGroup = new PeerGroup(network, chain);
                 peerGroup.addPeerDiscovery(new DnsDiscovery(network));
+
+                try {
+                    peerGroup.waitForPeers( peerGroup.getMaxConnections() ).get();
+                    terminal.println("network fully online");
+                } catch (ExecutionException e) {}
 
                 List<WalletNameId> wallets = listOfWallets();
                 wallets.forEach(w -> {
@@ -74,7 +74,7 @@ public class MultiWallet {
                 wallets.forEach(s -> {
                     wallets.forEach(t -> {
 
-                        Coin amount = Coin.ofSat(1001);
+                        Coin amount = Coin.ofSat(1000);
                         Coin fee = Coin.ofSat(1000);
 
                         SendRequest sendRequest = SendRequest.to(t.wallet().currentReceiveAddress(), amount);
@@ -90,7 +90,7 @@ public class MultiWallet {
                             try {
                                 CompletableFuture<TransactionBroadcast> cast = caster.broadcastOnly();
                                 cast.get();
-                                terminal.println("cast:");
+                                terminal.println("broadcast progress done:");
 
                                 s.wallet().commitTx(txn);
 
@@ -106,7 +106,16 @@ public class MultiWallet {
                 peerGroup.stop();
                 blockStore.close();
 
-            }catch (BlockStoreException | InterruptedException e ){
+            wallets.forEach(w -> {
+                try {
+                    w.wallet().saveToFile(new File(WALLET_DIR_PATH+"/"+w.name()+ WALLET_FILE_POST_FIX) );
+                } catch (IOException e) {
+                    terminal.println(e.getMessage());
+                }
+            });
+
+
+        }catch (BlockStoreException | InterruptedException e ){
                 e.printStackTrace();
             }
     }

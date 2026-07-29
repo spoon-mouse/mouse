@@ -1,6 +1,7 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.DownloadTracker;
+import com.mouse.util.MultiWallet;
 import com.mouse.util.WalletNameId;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestWord;
@@ -54,7 +55,7 @@ public class LaunchScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        WALLET, RESTORE, DIGEST, EXIT
+        WALLET, RESTORE, DIGEST, TEST, EXIT
     }
 
     public static void main(String[] args){
@@ -85,6 +86,9 @@ public class LaunchScreen {
                     break;
                 case DIGEST:
                     show_wallet_digest();
+                    break;
+                case TEST:
+                    MultiWallet.go();
                     break;
                 case EXIT:
                     System.exit(0);
