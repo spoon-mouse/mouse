@@ -35,10 +35,7 @@ public class TxnTable {
     }
 
     public static String simple_transation_table(List<Transaction> txns, Wallet wallet) {
-        AsciiTable table = new AsciiTable();
-        table.addRule();
-        table.addRow("type", "amount", "fee");
-        table.addRule();
+        AsciiTable table = getTable("type", "amount", "fee");
 
         txns.forEach( (tx)->{
             TxnInfo info = TxnInfo.get(tx, wallet);
@@ -50,12 +47,7 @@ public class TxnTable {
     }
 
     public static String expanded_transation_table(List<Transaction> txns, Wallet wallet) {
-        AsciiTable table = new AsciiTable();
-        table.getRenderer().setCWC(new CWC_LongestWord());
-        table.setPaddingLeftRight(2);
-        table.addRule();
-        table.addRow("id", "type", "amount", "fee", "total", "value",  "fromMe", "toMe", "confidenceType", "blockDepth");
-        table.addRule();
+        final AsciiTable table = getTable("id", "type", "amount", "fee", "total", "value",  "fromMe", "toMe", "confidenceType", "blockDepth");
 
         txns.forEach( (tx)->{
             TransactionConfidence confidence = tx.getConfidence();
@@ -75,18 +67,58 @@ public class TxnTable {
 
 
     public static String sent_table(List<Transaction> txns, Wallet wallet) {
-        AsciiTable table = new AsciiTable();
-        table.getRenderer().setCWC(new CWC_LongestWord());
-        table.addRule();
-        table.addRow("id", "type", "amount", "fee", "to address");
-        table.addRule();
+        AsciiTable table = getTable("id", "type", "amount", "fee", "to address");
 
-        txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::isSend).collect(toList()).forEach( tx ->{
+        txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::isSend).toList().forEach(tx ->{
             table.addRow( tx.id(), tx.type(), tx.amount(), tx.fee(), tx.toAddress());
         });
+        table.addRule();
+        return table.render();
+    }
+
+    public static String recived_table(List<Transaction> txns, Wallet wallet) {
+        AsciiTable table = getTable("id", "type", "amount");
+
+        txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::zeroSentFromMe).toList().forEach(tx ->{
+            table.addRow( tx.id(), tx.type(), tx.amount());
+        });
+        table.addRule();
+        return table.render();
+    }
+
+
+    public static String moved_table(List<Transaction> txns, Wallet wallet) {
+        AsciiTable table = getTable("id", "type", "amount", "fee");
+
+        txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::allOutputsMine).toList().forEach(tx ->{
+            table.addRow( tx.id(), tx.type(), tx.amount(), tx.fee());
+        });
+        table.addRule();
+        return table.render();
+    }
+
+    public static String send_addresses_table(Wallet wallet){
+        AsciiTable table = getTable( "address");
+
+        addressesSentTo(wallet).forEach(address -> table.addRow(address));
 
         table.addRule();
         return table.render();
     }
 
+    public static List<Address> addressesSentTo(Wallet wallet){
+        return wallet.getTransactionsByTime().stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::isSend)
+                .map(tx -> tx.toAddress() ).distinct().toList();
+    }
+
+
+    private static AsciiTable getTable(Object... col) {
+        AsciiTable table = new AsciiTable();
+        table.getRenderer().setCWC(new CWC_LongestWord());
+        table.setPaddingLeftRight(2);
+        table.addRule();
+        table.addRow(col);
+        table.addRule();
+        return table;
+    }
 }

@@ -8,11 +8,9 @@ import org.bitcoinj.wallet.Wallet;
 
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
 
-public record TxnInfo(Transaction tx, String id, long amount, TxType type, long total, long fee) {
+public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxType type, long total, long fee) {
 
     public static TxnInfo get(Transaction txn, Wallet wallet){
-
-
 
         String id = txn.getTxId().toString();
         long value = txn.getValue(wallet).getValue();
@@ -25,13 +23,12 @@ public record TxnInfo(Transaction tx, String id, long amount, TxType type, long 
         }
         long fee = txnFee.getValue();
 
-        return get(txn, id, fromMe, toMe, fee, value);
+        return get(wallet, txn, id, fromMe, toMe, fee, value);
     }
 
-    public boolean isSend(){
-        return type == TxType.SENT;
-    }
-    private static TxnInfo get(Transaction txn, String id, long fromMe, long toMe, long fee, long value) {
+    public boolean isSend(){ return type == TxType.SENT; }
+
+    private static TxnInfo get(Wallet wallet, Transaction txn, String id, long fromMe, long toMe, long fee, long value) {
         long amount=0;
         TxType type;
         long total=0;
@@ -50,12 +47,12 @@ public record TxnInfo(Transaction tx, String id, long amount, TxType type, long 
                 total = amount + fee;
             }
         }
-        return new TxnInfo(txn, id, amount, type, total, fee);
+        return new TxnInfo(wallet, txn, id, amount, type, total, fee);
     }
 
     /*
-    * if its a USER_PAYMENT then its a TxType.SENT and the output with value == to amount is what was sent
-    * so that output address is the toAddress. or returns null if it's a RECIVE
+    * if its a TxType.SENT and the output with value == to amount is what was sent
+    * so that output address is the toAddress. or returns null
     * */
     public Address toAddress(){
         if( type == TxType.SENT ) {
@@ -63,6 +60,14 @@ public record TxnInfo(Transaction tx, String id, long amount, TxType type, long 
                     .map( o -> o.getScriptPubKey().getToAddress(NETWORK)).findFirst().orElse(null);
         }
         return null;
+    }
+
+    public boolean allOutputsMine(){
+        return tx.getOutputs().stream().allMatch(o-> wallet.isAddressMine( o.getScriptPubKey().getToAddress(NETWORK) ));
+    }
+
+    public boolean zeroSentFromMe(){
+        return tx.getValueSentFromMe(wallet).value==0;
     }
 
     public String toString(){
