@@ -1,5 +1,6 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.listener.PeerAddListener;
 import com.mouse.util.TxCastCallBack;
 import com.mouse.util.TxnInfo;
 import com.mouse.util.AddressAmountFee;
@@ -7,6 +8,7 @@ import com.mouse.util.TxnUtil;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.PeerConnectedEventListener;
 import org.bitcoinj.kits.WalletAppKit;
@@ -27,19 +29,22 @@ public class SendTransactionScreen {
     public static void show(String walletName, WalletAppKit kit) {
         try {
             AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
-            if (addressAmountFee==null) {
+            if (addressAmountFee == null) {
                 return;
             }
             sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
-        } catch (InsufficientMoneyException | Wallet.TransactionCompletionException | IllegalArgumentException e) {
+        }catch (AddressFormatException e){
+            terminal.println("invalid address: "+e.getMessage());
+        } catch (IllegalArgumentException | InsufficientMoneyException | Wallet.TransactionCompletionException e) {
             terminal.println(e.getMessage());
         }catch (VerificationException e){
             terminal.println(e.getMessage());
             System.out.println(e);
-            e.printStackTrace();
         } catch (ExecutionException | InterruptedException | IllegalMonitorStateException e ) {
             System.out.println(e);
         }
+
+        try{Thread.sleep(3000);} catch (InterruptedException e) {}
     }
 
 
@@ -51,21 +56,25 @@ public class SendTransactionScreen {
 
         int now = peerGroup.numConnectedPeers();
         terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
-        peerGroup.addConnectedEventListener(  (p, count)  -> {terminal.println( "broadcasting...("+count+"/"+MIN_TO_BROADCAST_TXN+")"  );});
+
+        PeerAddListener peerAdd = new PeerAddListener();
+        peerGroup.addConnectedEventListener(peerAdd);
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
+
         txnCast.setProgressCallback(progress -> terminal.println("broadcast progress: "+String.format("%.1f", progress*100.0)+"%"));
 
         txnCast.broadcast().get();
         terminal.println("broadcast: done");
         txnCast.awaitRelayed().get();
         terminal.println("relayed: done");
+        peerGroup.removeConnectedEventListener(peerAdd);
 
         wallet.maybeCommitTx(tx);
     }
 
 
-    private static AddressAmountFee get_address_amount_fee_from_gui_or_null(Wallet wallet) {
+    private static AddressAmountFee get_address_amount_fee_from_gui_or_null(Wallet wallet) throws AddressFormatException {
         String address = textIO.newStringInputReader()
                 .withMinLength(0)
                 .withMaxLength(62)
@@ -76,10 +85,9 @@ public class SendTransactionScreen {
         if(address==null || address.isEmpty()){
             return null;
         }
-        if(address.length()<26){
-            terminal.println("address length less that 26");
-            return null;
-        }
+
+        wallet.parseAddress(address);
+
 
         long amount = textIO.newLongInputReader()
                 .withMinVal(1L)

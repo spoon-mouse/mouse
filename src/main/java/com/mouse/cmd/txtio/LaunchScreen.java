@@ -124,11 +124,11 @@ public class LaunchScreen {
         AsciiTable table = new AsciiTable();
         table.getRenderer().setCWC(new CWC_LongestWord());
         table.addRule();
-        table.addRow("name", "encrypted", "balance", "block hight", "id");
+        table.addRow("name", "encrypted", "balance", "block hight", "id", "receive address");
         table.addRule();
 
         getWalletMap().values().stream().flatMap(Collection::stream).forEach(i -> {
-            table.addRow(i.name(), i.wallet().isEncrypted(), i.wallet().getBalance().getValue(), i.wallet().getLastBlockSeenHeight(), i.id());
+            table.addRow(i.name(), i.wallet().isEncrypted(), i.wallet().getBalance().getValue(), i.wallet().getLastBlockSeenHeight(), i.id(), i.wallet().currentReceiveAddress());
         });
 
         table.addRule();
