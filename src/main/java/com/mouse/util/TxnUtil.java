@@ -7,7 +7,7 @@ import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 
 public class TxnUtil {
 
-    public static Transaction setup_txn(AddressAmountFee aaf, Wallet wallet) throws Wallet.BadWalletEncryptionKeyException, InsufficientMoneyException, Wallet.DustySendRequested, Wallet.TransactionCompletionException {
+    public static Transaction setup_txn(AddressAmountFee aaf, Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
         SendRequest sendRequest = SendRequest.to(aaf.address(), aaf.amount());
         sendRequest.feePerKb = aaf.fee();
 

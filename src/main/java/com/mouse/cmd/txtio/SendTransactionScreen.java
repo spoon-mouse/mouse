@@ -31,7 +31,7 @@ public class SendTransactionScreen {
                 return;
             }
             sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
-        } catch (InsufficientMoneyException | Wallet.BadWalletEncryptionKeyException | Wallet.DustySendRequested | IllegalArgumentException e){
+        } catch (InsufficientMoneyException | Wallet.TransactionCompletionException | IllegalArgumentException e){
             terminal.println(e.getMessage());
         } catch (ExecutionException | InterruptedException e) {
             System.out.println(e);
@@ -39,7 +39,7 @@ public class SendTransactionScreen {
     }
 
 
-    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException {
 
         Transaction tx = TxnUtil.setup_txn(addressAmountFee, wallet);
 
