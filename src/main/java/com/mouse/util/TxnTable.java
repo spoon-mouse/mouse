@@ -33,16 +33,8 @@ public class TxnTable {
         table.addRule();
 
         txns.forEach( (tx)->{
-            final long fromMe = tx.getValueSentFromMe(wallet).getValue();
-            final long toMe = tx.getValueSentToMe(wallet).getValue();
-            final long value = tx.getValue(wallet).getValue();
-            Coin feeCoin = tx.getFee();
-            if(feeCoin==null){
-                feeCoin=Coin.ZERO;
-            }
-            long fee = feeCoin.getValue();
-            AmountType pair = AmountType.get(fromMe, toMe, fee, value);
-            table.addRow(pair.type(), pair.amount(), fee);
+            TxnInfo info = TxnInfo.get(tx, wallet);
+            table.addRow(info.type(), info.amount(), info.fee());
         });
 
         table.addRule();
@@ -54,26 +46,20 @@ public class TxnTable {
         table.getRenderer().setCWC(new CWC_LongestWord());
         table.setPaddingLeftRight(2);
         table.addRule();
-        table.addRow("id", "type", "amount", "fromMe", "toMe", "value", "fee", "confidenceType", "blockDepth");
+        table.addRow("id", "type", "amount", "fee", "total", "value",  "fromMe", "toMe", "confidenceType", "blockDepth");
         table.addRule();
 
         txns.forEach( (tx)->{
             TransactionConfidence confidence = tx.getConfidence();
             TransactionConfidence.ConfidenceType confidenceType = confidence.getConfidenceType();
-
-            Sha256Hash id = tx.getTxId();
             int blockDepth = confidence.getDepthInBlocks();
+
             long fromMe = tx.getValueSentFromMe(wallet).getValue();
             long toMe = tx.getValueSentToMe(wallet).getValue();
             long value = tx.getValue(wallet).getValue();
-            Coin feeCoin = tx.getFee();
-            if(feeCoin==null){
-                feeCoin=Coin.ZERO;
-            }
-            long fee = feeCoin.getValue();
 
-            AmountType pair = AmountType.get(fromMe, toMe, fee, value);
-            table.addRow(id, pair.type(), pair.amount(), fromMe, toMe, value, fee, confidenceType, blockDepth);
+            TxnInfo info = TxnInfo.get(tx, wallet);
+            table.addRow(info.id(), info.type(), info.amount(), info.fee(), info.total(), value, fromMe, toMe, confidenceType, blockDepth);
         });
         table.addRule();
         return table.render()+System.lineSeparator()+"Transactions: "+txns.size()+" balance: "+wallet.getBalance().toFriendlyString();

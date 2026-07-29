@@ -55,7 +55,7 @@ public class LaunchScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        WALLET, RESTORE, DIGEST, TEST, EXIT
+        WALLET, RESTORE, DIGEST, EXIT
     }
 
     public static void main(String[] args){
@@ -86,9 +86,6 @@ public class LaunchScreen {
                     break;
                 case DIGEST:
                     show_wallet_digest();
-                    break;
-                case TEST:
-                    MultiWallet.go();
                     break;
                 case EXIT:
                     System.exit(0);

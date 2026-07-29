@@ -48,16 +48,24 @@ public class MultiWallet {
         TextTerminal terminal = textIO.getTextTerminal();
 
         try {
-                BlockStore blockStore = new SPVBlockStore(netParams, new File(WALLET_DIR_PATH+"/common"+SPVCHAIN_FILE_POST_FIX));
+                BlockStore blockStore = new SPVBlockStore(netParams, new File(WALLET_DIR_PATH+"/w1"+SPVCHAIN_FILE_POST_FIX));
 
                 BlockChain chain = new BlockChain(network, blockStore);
                 PeerGroup peerGroup = new PeerGroup(network, chain);
                 peerGroup.addPeerDiscovery(new DnsDiscovery(network));
 
+                DownloadTracker listener = new DownloadTracker(terminal);
+                peerGroup.start();
+
                 try {
-                    peerGroup.waitForPeers( peerGroup.getMaxConnections() ).get();
-                    terminal.println("network fully online");
+                    peerGroup.waitForPeers( 3 ).get();
+                    terminal.println("network of 3 peers");
                 } catch (ExecutionException e) {}
+
+                peerGroup.startBlockChainDownload(listener);
+                listener.await();
+
+
 
                 List<WalletNameId> wallets = listOfWallets();
                 wallets.forEach(w -> {
@@ -65,10 +73,6 @@ public class MultiWallet {
                     peerGroup.addWallet(w.wallet());
                 });
 
-                DownloadTracker listener = new DownloadTracker(terminal);
-                peerGroup.start();
-                peerGroup.startBlockChainDownload(listener);
-                listener.await();
 
 
                 wallets.forEach(s -> {

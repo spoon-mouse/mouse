@@ -1,83 +1,64 @@
 package com.mouse.cmd.txtio;
 
-import com.mouse.listener.TerminalTxnCastListener;
-import com.mouse.listener.WalletSentListener;
-import com.mouse.util.AmountType;
-import com.mouse.util.SendTransaction;
-import com.mouse.util.SendTxnInfo;
+import com.mouse.util.TxnInfo;
+import com.mouse.util.AddressAmountFee;
+import com.mouse.util.TxnUtil;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.TransactionBroadcast;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.Wallet;
 
-
+import java.util.concurrent.ExecutionException;
 
 
 public class SendTransactionScreen {
 
-    private static TextIO textIO;
-    private static TextTerminal terminal;
+    private static TextIO textIO = TextIoFactory.getTextIO();
+    private static TextTerminal terminal = textIO.getTextTerminal();
 
 
-    public static void show(String walletName,  WalletAppKit kit){
-        textIO = TextIoFactory.getTextIO();
-        terminal = textIO.getTextTerminal();
+    public static final int MIN_TO_BROADCAST_TXN = 5;
 
-
-        terminal.println(walletName+" balance: "+kit.wallet().getBalance().toFriendlyString());
-
-        SendTxnInfo info = get_SendTxnInfo_GuI();
-        if(info==null){
-            return;
-        }
-
-        SendTransaction sendTransaction = new SendTransaction(kit);
-        try{
-            sendTransaction.init(info);
-
-            Transaction txn = sendTransaction.complete_txn();
-            String id = txn.getTxId().toString();
-
-            long value = txn.getValue(kit.wallet()).getValue();
-            long fee = txn.getFee().getValue();
-            long fromMe=txn.getValueSentFromMe(kit.wallet()).getValue();
-            long toMe=txn.getValueSentToMe(kit.wallet()).getValue();
-            AmountType txInfo = AmountType.get(fromMe, toMe, fee, value);
-
-            terminal.println("transaction: "+id+" "+txInfo.type()+" "+txInfo.amount() +" fee: "+fee+" total: "+txInfo.total());
-
-            final PeerGroup peerGroup = kit.peerGroup();
-            int min = peerGroup.getMinBroadcastConnections();
-            int now = peerGroup.numConnectedPeers();
-
-            TerminalTxnCastListener castListener = new TerminalTxnCastListener(terminal, txn);
-            peerGroup.addOnTransactionBroadcastListener(castListener);
-
-            WalletSentListener sentListener = new WalletSentListener(terminal);
-            kit.wallet().addCoinsSentEventListener(sentListener);
-
-            terminal.println("broadcasting...("+now+"/"+min+")");
-            sendTransaction.broadCast();
-            sendTransaction.awaitBroadCasted();
-            terminal.println("done:");
-
-            peerGroup.removeOnTransactionBroadcastListener(castListener);
-            kit.wallet().removeCoinsSentEventListener(sentListener);
-
-
-            //sendTransaction.awaitRelayed();
-            //terminal.println("transaction relayed: ");
-        }catch (Exception e){
-            System.out.println(e);
+    public static void show(String walletName, WalletAppKit kit) {
+        try {
+            AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
+            if (addressAmountFee==null) {
+                return;
+            }
+            sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
+        } catch (InsufficientMoneyException | Wallet.BadWalletEncryptionKeyException | Wallet.DustySendRequested | IllegalArgumentException e){
             terminal.println(e.getMessage());
+        } catch (ExecutionException | InterruptedException e) {
+            System.out.println(e);
         }
     }
 
 
+    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
-    private static SendTxnInfo get_SendTxnInfo_GuI() {
+        Transaction tx = TxnUtil.setup_txn(addressAmountFee, wallet);
+
+        terminal.println( TxnInfo.get(tx, wallet).toString() );
+
+        int now = peerGroup.numConnectedPeers();
+        terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
+
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
+        txnCast.setProgressCallback(progress -> terminal.println("broadcast id:"+tx.getTxId()+" progress: "+progress));
+
+        txnCast.broadcastOnly().get();
+        terminal.println("done:");
+
+        wallet.commitTx(tx);
+    }
+
+
+    private static AddressAmountFee get_address_amount_fee_from_gui_or_null(Wallet wallet) {
         String address = textIO.newStringInputReader()
                 .withMinLength(0)
                 .withMaxLength(62)
@@ -105,7 +86,7 @@ public class SendTransactionScreen {
                 .withInputTrimming(true)
                 .read("fee (sats per vbyte):");
 
-        return new SendTxnInfo(address, amount, fee);
+        return AddressAmountFee.get(address, amount, fee, wallet);
     }
 
 

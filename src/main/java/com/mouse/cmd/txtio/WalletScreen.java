@@ -1,6 +1,5 @@
 package com.mouse.cmd.txtio;
 
-import com.mouse.listener.BigListener;
 import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.core.PeerGroup;
