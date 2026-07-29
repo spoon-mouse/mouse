@@ -14,6 +14,6 @@ public class PeerAddListener implements PeerConnectedEventListener {
 
     @Override
     public void onPeerConnected(Peer peer, int peerCount) {
-        terminal.println( "connecting...("+peerCount+")"  );
+        terminal.println( "connecting..."  );
     }
 }

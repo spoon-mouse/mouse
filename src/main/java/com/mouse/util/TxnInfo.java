@@ -1,12 +1,18 @@
 package com.mouse.util;
 
+import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
 
-public record TxnInfo(String id, long amount, TxType type, long total, long fee) {
+import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
+
+public record TxnInfo(Transaction tx, String id, long amount, TxType type, long total, long fee) {
 
     public static TxnInfo get(Transaction txn, Wallet wallet){
+
+
 
         String id = txn.getTxId().toString();
         long value = txn.getValue(wallet).getValue();
@@ -19,10 +25,13 @@ public record TxnInfo(String id, long amount, TxType type, long total, long fee)
         }
         long fee = txnFee.getValue();
 
-        return get(id, fromMe, toMe, fee, value);
+        return get(txn, id, fromMe, toMe, fee, value);
     }
 
-    public static TxnInfo get(String id, long fromMe, long toMe, long fee, long value) {
+    public boolean isSend(){
+        return type == TxType.SENT;
+    }
+    private static TxnInfo get(Transaction txn, String id, long fromMe, long toMe, long fee, long value) {
         long amount=0;
         TxType type;
         long total=0;
@@ -41,7 +50,19 @@ public record TxnInfo(String id, long amount, TxType type, long total, long fee)
                 total = amount + fee;
             }
         }
-        return new TxnInfo(id, amount, type, total, fee);
+        return new TxnInfo(txn, id, amount, type, total, fee);
+    }
+
+    /*
+    * if its a USER_PAYMENT then its a TxType.SENT and the output with value == to amount is what was sent
+    * so that output address is the toAddress. or returns null if it's a RECIVE
+    * */
+    public Address toAddress(){
+        if( type == TxType.SENT ) {
+            return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
+                    .map( o -> o.getScriptPubKey().getToAddress(NETWORK)).findFirst().orElse(null);
+        }
+        return null;
     }
 
     public String toString(){

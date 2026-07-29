@@ -21,7 +21,7 @@ public class WalletHistoryScreen {
     private static final List<ConfListner> confListners = new ArrayList<>();
 
     public enum Choice {
-        SIMPLE, EXPANDED, PENDING, VIEW, BACK, EXIT
+        SIMPLE, EXPANDED, PENDING, SENT, VIEW, BACK, EXIT
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -40,6 +40,11 @@ public class WalletHistoryScreen {
                     break;
                 case PENDING:
                     show_pending(wallet);
+                    break;
+                case SENT:
+
+                    terminal.println( sent_table(wallet.getTransactionsByTime(), wallet) );
+
                     break;
                 case VIEW:
                     view_a_transaction(wallet);

@@ -1,7 +1,6 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.DownloadTracker;
-import com.mouse.util.MultiWallet;
 import com.mouse.util.WalletNameId;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestWord;
@@ -23,7 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -34,8 +32,8 @@ import java.util.stream.Collectors;
 public class LaunchScreen {
 
 
-    public static final BitcoinNetwork network = BitcoinNetwork.TESTNET;
-    public static final NetworkParameters netParams = NetworkParameters.of(network);
+    public static final BitcoinNetwork NETWORK = BitcoinNetwork.TESTNET;
+    public static final NetworkParameters netParams = NetworkParameters.of(NETWORK);
     public static final String walletDirStr = "wallet";
     public static final Path WALLET_DIR_PATH = Path.of(walletDirStr);
     public static final File walletDir = new File(walletDirStr);
@@ -174,7 +172,7 @@ public class LaunchScreen {
         terminal.println();
         walletName = get_wallet_name_from_gui();
         try{
-            kit = WalletAppKit.launch(network, walletDir, walletName);
+            kit = WalletAppKit.launch(NETWORK, walletDir, walletName);
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
@@ -206,14 +204,14 @@ public class LaunchScreen {
 
         walletName=get_wallet_name_from_gui();
         try {
-            Wallet wallet = Wallet.fromSeed(network, seed, ScriptType.P2WPKH);
+            Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
             BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+SPVCHAIN_FILE_POST_FIX));
 
-            BlockChain chain = new BlockChain(network, wallet, blockStore);
-            PeerGroup peerGroup = new PeerGroup(network, chain);
-            peerGroup.addPeerDiscovery(new DnsDiscovery(network));
+            BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
+            PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+            peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
 
             DownloadTracker listener = new DownloadTracker(terminal);
