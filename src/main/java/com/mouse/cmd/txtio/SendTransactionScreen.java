@@ -8,6 +8,7 @@ import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.core.*;
+import org.bitcoinj.core.listeners.PeerConnectedEventListener;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.utils.ListenableCompletableFuture;
 import org.bitcoinj.wallet.Wallet;
@@ -48,10 +49,9 @@ public class SendTransactionScreen {
 
         terminal.println( TxnInfo.get(tx, wallet).toString() );
 
-        terminal.println("waiting connections: "+MIN_TO_BROADCAST_TXN);
-        peerGroup.waitForPeers(MIN_TO_BROADCAST_TXN).get();
         int now = peerGroup.numConnectedPeers();
         terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
+        peerGroup.addConnectedEventListener(  (p, count)  -> {terminal.println( "broadcasting...("+count+"/"+MIN_TO_BROADCAST_TXN+")"  );});
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
         txnCast.setProgressCallback(progress -> terminal.println("broadcast progress: "+String.format("%.1f", progress*100.0)+"%"));
