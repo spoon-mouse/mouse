@@ -49,7 +49,7 @@ public class SendTransactionScreen {
         terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
-        txnCast.setProgressCallback(progress -> terminal.println("broadcast id:"+tx.getTxId()+" progress: "+progress));
+        txnCast.setProgressCallback(progress -> terminal.println("broadcast id:"+tx.getTxId()+" progress: "+String.format("%.1f", progress)+"%"));
 
         txnCast.broadcastOnly().get();
         terminal.println("done:");
