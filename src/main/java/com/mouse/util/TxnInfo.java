@@ -45,6 +45,13 @@ public record TxnInfo(String id, long amount, TxType type, long total, long fee)
     }
 
     public String toString(){
-        return "transaction: "+id+" "+type+" amount: "+amount +" fee: "+fee+" total: "+total;
+        switch (type){
+            case MOVED:
+                return "transaction: "+id+" "+type+" "+amount +" fee: "+fee;
+            case SENT:
+            case RECEIVE:
+                return "transaction: "+id+" "+type+" "+amount +" fee: "+fee+" total: "+total;
+        }
+        return null;
     }
 }

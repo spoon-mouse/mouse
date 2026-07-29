@@ -4,6 +4,7 @@ import com.mouse.listener.ConfListner;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.core.Transaction;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.ArrayList;
@@ -20,7 +21,7 @@ public class WalletHistoryScreen {
     private static final List<ConfListner> confListners = new ArrayList<>();
 
     public enum Choice {
-        SIMPLE_TABLE, EXPANDED_TABLE, VIEW_TRANSACTION, TRACK, STOP_TRACKING, BACK, EXIT
+        SIMPLE, EXPANDED, PENDING, VIEW, BACK, EXIT
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -31,20 +32,17 @@ public class WalletHistoryScreen {
 
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Transactions: ");
             switch (choice) {
-                case SIMPLE_TABLE:
+                case SIMPLE:
                     terminal.println( simple_transation_table(wallet.getTransactionsByTime(), wallet) );
                     break;
-                case EXPANDED_TABLE:
+                case EXPANDED:
                     terminal.println( expanded_transation_table(wallet.getTransactionsByTime(), wallet) );
                     break;
-                case VIEW_TRANSACTION:
+                case PENDING:
+                    show_pending(wallet);
+                    break;
+                case VIEW:
                     view_a_transaction(wallet);
-                    break;
-                case TRACK:
-                    track_a_transaction(wallet);
-                    break;
-                case STOP_TRACKING:
-                    stop_tracking(wallet);
                     break;
                 case BACK:
                     return;
@@ -53,6 +51,11 @@ public class WalletHistoryScreen {
             }
         }
 
+    }
+
+    private static void show_pending(Wallet wallet) {
+        List<Transaction> pending = new ArrayList<>(wallet.getPendingTransactions());
+        terminal.println(expanded_transation_table(pending, wallet));
     }
 
     private static void stop_tracking(Wallet wallet) {

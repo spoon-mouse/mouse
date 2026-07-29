@@ -28,7 +28,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, TXNS, PENDING, INFO, PASSWORD, SEED, BACK, EXIT;
+        SEND, RECIVE, TXNS, INFO, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -49,9 +49,6 @@ public class WalletScreen {
                 case TXNS:
                     WalletHistoryScreen.show(walletName, kit.wallet());
                     break;
-                case PENDING:
-                    show_pending();
-                    break;
                 case INFO:
                     show_wallet_info();
                     break;
@@ -69,10 +66,6 @@ public class WalletScreen {
         }
     }
 
-    private static void show_pending() {
-        List<Transaction> pending = new ArrayList<>(kit.wallet().getPendingTransactions());
-        terminal.println(expanded_transation_table(pending, kit.wallet()));
-    }
 
     private static void show_wallet_info() {
         terminal.println(kit.wallet().toString());

@@ -1,5 +1,6 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.util.TxCastCallBack;
 import com.mouse.util.TxnInfo;
 import com.mouse.util.AddressAmountFee;
 import com.mouse.util.TxnUtil;
@@ -11,6 +12,7 @@ import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionBroadcast;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.utils.ListenableCompletableFuture;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
@@ -33,7 +35,7 @@ public class SendTransactionScreen {
             sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
         } catch (InsufficientMoneyException | Wallet.TransactionCompletionException | IllegalArgumentException e){
             terminal.println(e.getMessage());
-        } catch (ExecutionException | InterruptedException e) {
+        } catch (ExecutionException | InterruptedException | IllegalMonitorStateException e ) {
             System.out.println(e);
         }
     }
@@ -49,10 +51,13 @@ public class SendTransactionScreen {
         terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
-        txnCast.setProgressCallback(progress -> terminal.println("broadcast id:"+tx.getTxId()+" progress: "+String.format("%.1f", progress)+"%"));
 
-        txnCast.broadcastOnly().get();
-        terminal.println("done:");
+        txnCast.setProgressCallback(progress -> terminal.println("broadcast: "+tx.getTxId()+" progress: "+String.format("%.1f", progress*100.0)+"%"));
+
+        txnCast.broadcast().get();
+        terminal.println("broadcast:");
+        txnCast.awaitRelayed().get();
+        terminal.println("relayed:");
 
         wallet.commitTx(tx);
     }
