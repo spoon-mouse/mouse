@@ -125,7 +125,7 @@ public class LaunchScreen {
         table.addRow("name", "encrypted", "balance", "block hight", "id", "receive address");
         table.addRule();
 
-        getWalletMap().values().stream().flatMap(Collection::stream).forEach(i -> {
+        sortBySeenBlocks(listOfWallets()).reversed().forEach(i -> {
             table.addRow(i.name(), i.wallet().isEncrypted(), i.wallet().getBalance().getValue(), i.wallet().getLastBlockSeenHeight(), i.id(), i.wallet().currentReceiveAddress());
         });
 

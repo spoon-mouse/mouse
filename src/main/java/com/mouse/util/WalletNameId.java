@@ -23,5 +23,5 @@ public record WalletNameId(Wallet wallet, String name, String id) {
         return new WalletNameId(wallet,name, hash.toString());
     }
 
-    public int getLastBlockSeenHeight(){return wallet().getLastBlockSeenHeight();}
+    public int getLastBlockSeenHeight(){return wallet.getLastBlockSeenHeight();}
 }
