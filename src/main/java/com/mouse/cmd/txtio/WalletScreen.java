@@ -1,5 +1,6 @@
 package com.mouse.cmd.txtio;
 
+import com.mouse.util.TxnUtil;
 import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
@@ -10,12 +11,11 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
-import static com.mouse.util.TxnTable.expanded_transation_table;
+import static com.mouse.cmd.txtio.SendTransactionScreen.SendTxType.SEND_TX;
+import static com.mouse.cmd.txtio.SendTransactionScreen.SendTxType.SWEEP_TX;
 
 
 public class WalletScreen {
@@ -28,7 +28,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, HIST, INFO, PASSWORD, SEED, BACK, EXIT;
+        SWEEP, SEND, RECIVE, HIST, INFO, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -41,8 +41,11 @@ public class WalletScreen {
             Coin balance = kit.wallet().getBalance();
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)");
             switch (choice) {
+                case SWEEP:
+                    SendTransactionScreen.doTxnOfType(SWEEP_TX, kit);
+                    break;
                 case SEND:
-                    SendTransactionScreen.show(walletName, kit);
+                    SendTransactionScreen.doTxnOfType(SEND_TX, kit);
                     break;
                 case RECIVE:
                     recive();

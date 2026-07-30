@@ -1,7 +1,6 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.PeerAddListener;
-import com.mouse.util.TxCastCallBack;
 import com.mouse.util.TxnInfo;
 import com.mouse.util.AddressAmountFee;
 import com.mouse.util.TxnUtil;
@@ -10,9 +9,7 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.PeerConnectedEventListener;
 import org.bitcoinj.kits.WalletAppKit;
-import org.bitcoinj.utils.ListenableCompletableFuture;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
@@ -20,19 +17,30 @@ import java.util.concurrent.ExecutionException;
 
 public class SendTransactionScreen {
 
+    public enum SendTxType {
+        SEND_TX, SWEEP_TX
+    }
+
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
 
 
     public static final int MIN_TO_BROADCAST_TXN = 3;
 
-    public static void show(String walletName, WalletAppKit kit) {
+    public static void doTxnOfType(SendTxType txType, WalletAppKit kit) {
         try {
-            AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
-            if (addressAmountFee == null) {
-                return;
+            switch (txType) {
+                case SEND_TX:
+                    AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
+                    if (addressAmountFee == null) {
+                        return;
+                    }
+                    sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
+                    break;
+                case SWEEP_TX:
+                    sendSweepTxn(kit.wallet(), kit.peerGroup());
+                    break;
             }
-            sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
         }catch (AddressFormatException e){
             terminal.println("invalid address: "+e.getMessage());
         } catch (IllegalArgumentException | InsufficientMoneyException | Wallet.TransactionCompletionException e) {
@@ -47,10 +55,18 @@ public class SendTransactionScreen {
         try{Thread.sleep(3000);} catch (InterruptedException e) {}
     }
 
+    public static void sendSweepTxn(Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+        Transaction tx = TxnUtil.setup_sweep(wallet);
+        sendTxn(tx, wallet, peerGroup);
+    }
+
 
     public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-
         Transaction tx = TxnUtil.setup_txn(addressAmountFee, wallet);
+        sendTxn(tx, wallet, peerGroup);
+    }
+
+    public static void sendTxn(Transaction tx , Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         terminal.println( TxnInfo.get(tx, wallet).toString() );
 
