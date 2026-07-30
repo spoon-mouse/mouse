@@ -88,10 +88,10 @@ public class TxnTable {
 
 
     public static String moved_table(List<Transaction> txns, Wallet wallet) {
-        AsciiTable table = getTable("id", "type", "amount", "fee");
+        AsciiTable table = getTable("id", "type", "amount", "fee", "total", "address");
 
         txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::allOutputsMine).toList().forEach(tx ->{
-            table.addRow( tx.id(), tx.type(), tx.amount(), tx.fee());
+            table.addRow( tx.id(), tx.type(), tx.amount(), tx.fee(), tx.total(), tx.toAddress());
         });
         table.addRule();
         return table.render();

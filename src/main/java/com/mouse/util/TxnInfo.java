@@ -53,17 +53,27 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     /*
     * if its a TxType.SENT and the output with value == to amount is what was sent
     * so that output address is the toAddress. or returns null
-    * */
+     */
+
+    private boolean hasMyAddress(TransactionOutput o){
+        return wallet.isAddressMine( o.getScriptPubKey().getToAddress(NETWORK));
+    }
+
+    public static Address getAddress(TransactionOutput o){ return o.getScriptPubKey().getToAddress(NETWORK); }
+
     public Address toAddress(){
         if( type == TxType.SENT ) {
             return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
-                    .map( o -> o.getScriptPubKey().getToAddress(NETWORK)).findFirst().orElse(null);
+                    .map(TxnInfo::getAddress).findFirst().orElse(null);
+        }else if(type == TxType.MOVED){
+            return tx.getOutputs().stream().filter(o -> o.getValue().value == tx.getValueSentToMe(wallet).value )
+                    .filter(o->hasMyAddress(o)).findFirst().map(TxnInfo::getAddress).orElse(null);
         }
         return null;
     }
 
     public boolean allOutputsMine(){
-        return tx.getOutputs().stream().allMatch(o-> wallet.isAddressMine( o.getScriptPubKey().getToAddress(NETWORK) ));
+        return tx.getOutputs().stream().allMatch(o-> hasMyAddress(o));
     }
 
     public boolean zeroSentFromMe(){

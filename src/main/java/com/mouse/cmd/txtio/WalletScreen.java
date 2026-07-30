@@ -2,6 +2,7 @@ package com.mouse.cmd.txtio;
 
 import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
+import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
@@ -37,7 +38,8 @@ public class WalletScreen {
         terminal = textIO.getTextTerminal();
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance: "+kit.wallet().getBalance().toFriendlyString());
+            Coin balance = kit.wallet().getBalance();
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)");
             switch (choice) {
                 case SEND:
                     SendTransactionScreen.show(walletName, kit);
