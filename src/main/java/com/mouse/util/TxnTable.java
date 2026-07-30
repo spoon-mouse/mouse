@@ -82,7 +82,7 @@ public class TxnTable {
 
 
     public static String sent_table(List<Transaction> txns, Wallet wallet) {
-        AsciiTable table = getTable("id", "type", "amount", "fee", "to address");
+        AsciiTable table = getTable("id", "type", "amount", "fee", "address");
 
         txns.stream().map(tx -> TxnInfo.get(tx, wallet)).filter(TxnInfo::isSend).toList().forEach(tx ->{
             table.addRow( tx.id(), tx.type(), tx.amount(), tx.fee(), tx.toAddress());
