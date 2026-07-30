@@ -6,6 +6,8 @@ import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
 
+import java.util.List;
+
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
 
 public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxType type, long total, long fee) {
@@ -61,13 +63,20 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
 
     public static Address getAddress(TransactionOutput o){ return o.getScriptPubKey().getToAddress(NETWORK); }
 
+    public List<Address> getAllAddresOfOutputs(){
+        return tx.getOutputs().stream().map(TxnInfo::getAddress).toList();
+    }
+
     public Address toAddress(){
         if( type == TxType.SENT ) {
             return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
                     .map(TxnInfo::getAddress).findFirst().orElse(null);
         }else if(type == TxType.MOVED){
-            return tx.getOutputs().stream().filter(o -> o.getValue().value == tx.getValueSentToMe(wallet).value )
-                    .filter(o->hasMyAddress(o)).findFirst().map(TxnInfo::getAddress).orElse(null);
+
+            return tx.getOutputs().stream().filter(o->hasMyAddress(o)).findFirst().map(TxnInfo::getAddress).orElse(null);
+        }else if(type == TxType.RECEIVE){
+            return tx.getOutputs().stream().filter(o->hasMyAddress(o))
+                      .filter(o->o.getValue().value == amount).findFirst().map(TxnInfo::getAddress).orElse(null);
         }
         return null;
     }
@@ -81,13 +90,10 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     }
 
     public String toString(){
-        switch (type){
-            case MOVED:
-                return "transaction: "+id+" "+type+" "+amount +" fee: "+fee;
-            case SENT:
-            case RECEIVE:
-                return "transaction: "+id+" "+type+" "+amount +" fee: "+fee+" total: "+total;
-        }
-        return null;
+        return "transaction: "+id+" "+type+" amount: "+amount +" fee: "+fee+" total: "+total+" value: "+ tx().getValue(wallet).value;
+    }
+
+    public long value() {
+        return tx.getValue(wallet).value;
     }
 }

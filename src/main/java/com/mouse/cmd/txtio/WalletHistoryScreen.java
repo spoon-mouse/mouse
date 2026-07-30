@@ -5,6 +5,7 @@ import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ public class WalletHistoryScreen {
     private static final List<ConfListner> confListners = new ArrayList<>();
 
     public enum Choice {
-        SIMPLE, EXPANDED, PENDING, SENT, RECIVED, MOVED, SENT_TO, VIEW, BACK, EXIT
+        SIMPLE, EXPANDED, PENDING, SENT, RECIVED, MOVED, UTXO, SENT_TO, VIEW, BACK, EXIT
     }
 
     public static void show(String walletName, Wallet wallet){
@@ -49,6 +50,9 @@ public class WalletHistoryScreen {
                     break;
                 case MOVED:
                     terminal.println( moved_table(wallet.getTransactionsByTime(), wallet) );
+                    break;
+                case UTXO:
+                    terminal.println( utxo_table(wallet) );
                     break;
                 case SENT_TO:
                     terminal.println( send_addresses_table(wallet) );
@@ -88,7 +92,6 @@ public class WalletHistoryScreen {
         confListners.add(confListner);
         wallet.addTransactionConfidenceEventListener(confListner);
         terminal.println("tracking: "+id);
-
     }
 
     private static void view_a_transaction(Wallet wallet) {

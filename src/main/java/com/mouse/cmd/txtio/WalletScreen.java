@@ -28,7 +28,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, TXNS, UTXO, INFO, PASSWORD, SEED, BACK, EXIT;
+        SEND, RECIVE, HIST, INFO, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -47,11 +47,8 @@ public class WalletScreen {
                 case RECIVE:
                     recive();
                     break;
-                case TXNS:
+                case HIST:
                     WalletHistoryScreen.show(walletName, kit.wallet());
-                    break;
-                case UTXO:
-                    do_some_utxo_stuff();
                     break;
                 case INFO:
                     show_wallet_info();
@@ -69,18 +66,6 @@ public class WalletScreen {
             }
         }
     }
-
-    private static void do_some_utxo_stuff() {
-
-            final List<TransactionOutput> utxos = kit.wallet().getUnspents();
-            terminal.println( "UTXO count: "+utxos.size() );
-
-            utxos.forEach(utxo -> {
-                terminal.println(utxo.isAvailableForSpending()+"  "+utxo.getValue().value);
-            });
-
-    }
-
 
     private static void show_wallet_info() {
         terminal.println(kit.wallet().toString());
