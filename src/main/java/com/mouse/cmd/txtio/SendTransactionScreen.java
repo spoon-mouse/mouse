@@ -55,12 +55,13 @@ public class SendTransactionScreen {
         terminal.println( TxnInfo.get(tx, wallet).toString() );
 
         int now = peerGroup.numConnectedPeers();
-        terminal.println("broadcasting...("+now+"/"+MIN_TO_BROADCAST_TXN+")" );
+        int target = Math.max(now-2, MIN_TO_BROADCAST_TXN);
+        terminal.println("broadcasting...(target: "+target+" connected: "+now+")" );
 
         PeerAddListener peerAdd = new PeerAddListener();
         peerGroup.addConnectedEventListener(peerAdd);
 
-        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_TO_BROADCAST_TXN, true);
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, target, true);
 
         txnCast.setProgressCallback(progress -> terminal.println("broadcast progress: "+String.format("%.1f", progress*100.0)+"%"));
 

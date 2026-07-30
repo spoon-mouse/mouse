@@ -24,7 +24,7 @@ public class TxnTable {
                 return "ID NOT FOUND";
             }
 
-            TxnInfo info =TxnInfo.get(tx, wallet);
+            TxnInfo info = TxnInfo.get(tx, wallet);
             return tx+System.lineSeparator()
                      +"toAddress: "+info.toAddress()+System.lineSeparator()
                      +info;
@@ -112,7 +112,7 @@ public class TxnTable {
     }
 
 
-    private static AsciiTable getTable(Object... col) {
+    public static AsciiTable getTable(Object... col) {
         AsciiTable table = new AsciiTable();
         table.getRenderer().setCWC(new CWC_LongestWord());
         table.setPaddingLeftRight(2);

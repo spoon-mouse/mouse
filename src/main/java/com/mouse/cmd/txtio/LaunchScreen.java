@@ -1,9 +1,7 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.DownloadTracker;
-import com.mouse.util.WalletNameId;
-import de.vandermeer.asciitable.AsciiTable;
-import de.vandermeer.asciitable.CWC_LongestWord;
+import com.mouse.util.WalletTable;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -15,7 +13,6 @@ import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.DeterministicSeed;
-import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
@@ -23,7 +20,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -83,7 +79,7 @@ public class LaunchScreen {
                     restore_from_seed();
                     break;
                 case DIGEST:
-                    show_wallet_digest();
+                    digest_of_wallets();
                     break;
                 case EXIT:
                     System.exit(0);
@@ -91,48 +87,6 @@ public class LaunchScreen {
             stop_kit();
         }
     }
-
-    public static List<WalletNameId> listOfWallets(){
-        List<WalletNameId> wallets = new ArrayList<>();
-        try {
-            Files.newDirectoryStream(WALLET_DIR_PATH,"*"+WALLET_FILE_POST_FIX).forEach(path -> {
-                try {
-                    wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile()), path.toFile()));
-                } catch (UnreadableWalletException e) {}
-            });
-        }catch (IOException e) {}
-        return wallets;
-    }
-
-    public static Map<String, List<WalletNameId>> mapById(List<WalletNameId> l){
-        return l.stream().collect(Collectors.groupingBy(WalletNameId::id));
-    }
-
-    private static List<WalletNameId> sortBySeenBlocks(List<WalletNameId> wallets){
-        wallets.sort(Comparator.comparing(WalletNameId::getLastBlockSeenHeight));
-        return wallets;
-    }
-
-    public static Map<String, List<WalletNameId>> getWalletMap(){
-        return mapById(sortBySeenBlocks(listOfWallets()));
-    }
-
-    private static void show_wallet_digest(){
-
-        AsciiTable table = new AsciiTable();
-        table.getRenderer().setCWC(new CWC_LongestWord());
-        table.addRule();
-        table.addRow("name", "encrypted", "balance", "block hight", "id", "receive address");
-        table.addRule();
-
-        sortBySeenBlocks(listOfWallets()).reversed().forEach(i -> {
-            table.addRow(i.name(), i.wallet().isEncrypted(), i.wallet().getBalance().getValue(), i.wallet().getLastBlockSeenHeight(), i.id(), i.wallet().currentReceiveAddress());
-        });
-
-        table.addRule();
-        terminal.println(table.render());
-    }
-
 
 
     private static void stop_kit() {
@@ -242,4 +196,8 @@ public class LaunchScreen {
         return textIO.newStringInputReader().withInputTrimming(true).withPattern(REGEX_12_WORDS).read("12 word seed phrase:");
     }
 
+
+    private static void digest_of_wallets() {
+        terminal.println( WalletTable.get_wallet_digest_table() );
+    }
 }

@@ -48,7 +48,7 @@ public class MultiWallet {
 
 
 
-                List<WalletNameId> wallets = listOfWallets();
+                List<WalletNameId> wallets = WalletTable.listOfWallets();
                 wallets.forEach(w -> {
                     chain.addWallet(w.wallet());
                     peerGroup.addWallet(w.wallet());
