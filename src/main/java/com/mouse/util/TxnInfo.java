@@ -70,10 +70,12 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     public Address toAddress(){
         if( type == TxType.SENT ) {
             return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
-                    .map(TxnInfo::getAddress).findFirst().orElse(null);
-        }else if(type == TxType.MOVED){
+                     .map(TxnInfo::getAddress).findFirst().orElse(null);
 
-            return tx.getOutputs().stream().filter(o->hasMyAddress(o)).findFirst().map(TxnInfo::getAddress).orElse(null);
+        }else if(type == TxType.MOVED){
+            return tx.getOutputs().stream().filter(o->hasMyAddress(o))
+                     .findFirst().map(TxnInfo::getAddress).orElse(null);
+
         }else if(type == TxType.RECEIVE){
             return tx.getOutputs().stream().filter(o->hasMyAddress(o))
                       .filter(o->o.getValue().value == amount).findFirst().map(TxnInfo::getAddress).orElse(null);
