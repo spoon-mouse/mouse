@@ -97,8 +97,8 @@ public class SendTransactionScreen {
 
         long fee = textIO.newLongInputReader()
                 .withDefaultValue(1L)
-                .withMinVal(1L)
-                .withMaxVal(99L)
+                .withMinVal(AddressAmountFee.MIN_FEE)
+                .withMaxVal(AddressAmountFee.MAX_FEE)
                 .withInputTrimming(true)
                 .read("fee (sats per vbyte):");
 

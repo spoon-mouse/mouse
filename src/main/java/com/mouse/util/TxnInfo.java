@@ -34,13 +34,13 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         long total=0;
         if(fromMe == 0){
             type = TxType.RECEIVE;
-            amount = toMe - fee;
+            amount = toMe;
             total=amount;
         }else{
             if( Math.abs(value) == fee ){
                 type = TxType.MOVED;
                 amount = fromMe;
-                total = fee;
+                total = amount - fee;
             }else{
                 type = TxType.SENT;
                 amount = (fromMe - toMe) - fee;

@@ -92,7 +92,6 @@ public class WalletHistoryScreen {
     }
 
     private static void view_a_transaction(Wallet wallet) {
-
         String id = get_TxnId_from_gui();
 
         if(id==null || id.isEmpty()){

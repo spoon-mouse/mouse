@@ -2,8 +2,7 @@ package com.mouse.cmd.txtio;
 
 import org.beryx.textio.*;
 import org.bitcoinj.base.Address;
-import org.bitcoinj.core.PeerGroup;
-import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
@@ -28,7 +27,7 @@ public class WalletScreen {
     private static TextTerminal terminal;
 
     public enum Choice {
-        SEND, RECIVE, TXNS, INFO, PASSWORD, SEED, BACK, EXIT;
+        SEND, RECIVE, TXNS, UTXO, INFO, PASSWORD, SEED, BACK, EXIT;
     }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
@@ -49,6 +48,9 @@ public class WalletScreen {
                 case TXNS:
                     WalletHistoryScreen.show(walletName, kit.wallet());
                     break;
+                case UTXO:
+                    do_some_utxo_stuff();
+                    break;
                 case INFO:
                     show_wallet_info();
                     break;
@@ -64,6 +66,17 @@ public class WalletScreen {
                     System.exit(0);
             }
         }
+    }
+
+    private static void do_some_utxo_stuff() {
+
+            final List<TransactionOutput> utxos = kit.wallet().getUnspents();
+            terminal.println( "UTXO count: "+utxos.size() );
+
+            utxos.forEach(utxo -> {
+                terminal.println(utxo.isAvailableForSpending()+"  "+utxo.getValue().value);
+            });
+
     }
 
 
