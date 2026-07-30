@@ -38,6 +38,7 @@ public class SendTransactionScreen {
                     sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
                     break;
                 case SWEEP_TX:
+                    AddressAmountFee.getFeeAsSatsPerKBCoin(getFee_from_gui());
                     sendSweepTxn(kit.wallet(), kit.peerGroup());
                     break;
             }
@@ -111,14 +112,19 @@ public class SendTransactionScreen {
                 .withInputTrimming(true)
                 .read("amount (sats):");
 
+        final long fee = getFee_from_gui();
+
+        return AddressAmountFee.get(address, amount, fee, wallet);
+    }
+
+    public static long getFee_from_gui() {
         long fee = textIO.newLongInputReader()
                 .withDefaultValue(1L)
                 .withMinVal(AddressAmountFee.MIN_FEE)
                 .withMaxVal(AddressAmountFee.MAX_FEE)
                 .withInputTrimming(true)
                 .read("fee (sats per vbyte):");
-
-        return AddressAmountFee.get(address, amount, fee, wallet);
+        return fee;
     }
 
 

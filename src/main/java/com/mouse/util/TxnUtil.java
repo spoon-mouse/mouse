@@ -10,7 +10,7 @@ public class TxnUtil {
 
     public static Transaction setup_sweep(Wallet wallet) throws InsufficientMoneyException {
         SendRequest sweep = SendRequest.emptyWallet(wallet.currentReceiveAddress());
-
+        //sweep.feePerKb=1000L;
         return setup_txn(sweep, wallet);
     }
 

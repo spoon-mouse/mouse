@@ -34,7 +34,7 @@ public class TxnTable {
     }
 
     public static String utxo_table(Wallet wallet) {
-        AsciiTable table = getTable( "value", "chain depth", "parent txn id", "output idx", "dust", "address");
+        AsciiTable table = getTable( "value", "blockDepth", "parent txn id", "outputIdx", "dust", "address");
 
         Map<Sha256Hash, List<TransactionOutput>> map = wallet.getUnspents().stream().sorted((x, y) -> (int) (x.getValue().value - y.getValue().value))
                                                              .collect(groupingBy(TransactionOutput::getParentTransactionHash));
