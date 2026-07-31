@@ -37,7 +37,7 @@ public class WalletScreen {
 
         while(true) {
             Coin balance = kit.wallet().getBalance();
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)"+" connections-"+kit.peerGroup().getConnectedPeers());
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)"+" connections-"+kit.peerGroup().numConnectedPeers());
             switch (choice) {
                 case SEND:
                     SendTransactionScreen.doTxnOfType(SEND_TX, kit);
