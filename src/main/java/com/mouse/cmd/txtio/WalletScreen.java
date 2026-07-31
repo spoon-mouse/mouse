@@ -27,9 +27,7 @@ public class WalletScreen {
     private static TextIO textIO;
     private static TextTerminal terminal;
 
-    public enum Choice {
-        SWEEP, SEND, RECIVE, HIST, INFO, PASSWORD, SEED, BACK, EXIT;
-    }
+    public enum Choice { SEND, RECIVE, HIST, INFO, PASSWORD, SEED, SWEEP, BACK, EXIT; }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
         kit = appkit;
@@ -41,9 +39,6 @@ public class WalletScreen {
             Coin balance = kit.wallet().getBalance();
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)"+" connections-"+kit.peerGroup().getConnectedPeers());
             switch (choice) {
-                case SWEEP:
-                    SendTransactionScreen.doTxnOfType(SWEEP_TX, kit);
-                    break;
                 case SEND:
                     SendTransactionScreen.doTxnOfType(SEND_TX, kit);
                     break;
@@ -61,6 +56,9 @@ public class WalletScreen {
                     break;
                 case SEED:
                     show_wallet_seed();
+                    break;
+                case SWEEP:
+                    SendTransactionScreen.doTxnOfType(SWEEP_TX, kit);
                     break;
                 case BACK:
                     return;
