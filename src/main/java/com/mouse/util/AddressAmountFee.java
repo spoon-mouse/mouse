@@ -6,7 +6,7 @@ import org.bitcoinj.wallet.Wallet;
 
 public record AddressAmountFee(Address address, Coin amount, Coin fee) {
 
-    public static long MIN_FEE=0;
+    public static long MIN_FEE=1;
     public static long MAX_FEE=99;
     public static AddressAmountFee get(String address, long amount, long fee, Wallet wallet) throws IllegalArgumentException{
 
