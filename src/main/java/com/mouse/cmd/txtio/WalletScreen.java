@@ -27,7 +27,7 @@ public class WalletScreen {
     private static TextIO textIO;
     private static TextTerminal terminal;
 
-    public enum Choice { SEND, RECIVE, HIST, INFO, PASSWORD, SEED, SWEEP, BACK, EXIT; }
+    public enum Choice { SEND, CSV_TX, RECIVE, HIST, INFO, PASSWORD, SEED, SWEEP, BACK, EXIT; }
 
     public static void show(String name, WalletAppKit appkit) throws IOException {
         kit = appkit;
@@ -40,6 +40,9 @@ public class WalletScreen {
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" balance ("+balance.toFriendlyString()+") ("+balance.value+" sats)"+" connections-"+kit.peerGroup().numConnectedPeers());
             switch (choice) {
                 case SEND:
+                    SendTransactionScreen.doTxnOfType(SEND_TX, kit);
+                    break;
+                case CSV_TX:
                     SendTransactionScreen.doTxnOfType(SEND_TX, kit);
                     break;
                 case RECIVE:

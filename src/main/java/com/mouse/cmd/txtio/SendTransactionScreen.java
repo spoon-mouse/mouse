@@ -7,9 +7,16 @@ import com.mouse.util.TxnUtil;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.base.Address;
+import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
+import org.bitcoinj.crypto.ECKey;
+import org.bitcoinj.crypto.TransactionSignature;
 import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.script.Script;
+import org.bitcoinj.script.ScriptBuilder;
+import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
@@ -18,7 +25,7 @@ import java.util.concurrent.ExecutionException;
 public class SendTransactionScreen {
 
     public enum SendTxType {
-        SEND_TX, SWEEP_TX
+        SEND_TX, SWEEP_TX, CSV_TX;
     }
 
     private static TextIO textIO = TextIoFactory.getTextIO();
@@ -30,8 +37,15 @@ public class SendTransactionScreen {
     public static void doTxnOfType(SendTxType txType, WalletAppKit kit) {
         try {
             switch (txType) {
-                case SEND_TX:
+                case CSV_TX:
                     AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
+                    if (addressAmountFee == null) {
+                        return;
+                    }
+                    checkSeqVerifyTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
+                    break;
+                case SEND_TX:
+                    addressAmountFee = get_address_amount_fee_from_gui_or_null(kit.wallet());
                     if (addressAmountFee == null) {
                         return;
                     }
@@ -59,6 +73,45 @@ public class SendTransactionScreen {
     public static void sendSweepTxn(Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         Transaction tx = TxnUtil.setup_sweep(wallet);
         sendTxn(tx, wallet, peerGroup);
+    }
+
+    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+
+        final Address address = addressAmountFee.address();
+
+        ScriptBuilder builder = new ScriptBuilder();
+        builder.number(3);
+        builder.op(ScriptOpCodes.OP_CHECKSEQUENCEVERIFY);
+        builder.op(ScriptOpCodes.OP_DROP);
+        builder.op(ScriptOpCodes.OP_DUP);
+        builder.op(ScriptOpCodes.OP_HASH160);
+
+        builder.data( address.getHash() );
+        builder.op(ScriptOpCodes.OP_EQUALVERIFY);
+        builder.op(ScriptOpCodes.OP_CHECKSIG);
+
+        Script redeamScript = builder.build();
+        Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeamScript);
+
+
+        Transaction tx = new Transaction();
+
+        TransactionOutput utxo = wallet.getUnspents().getFirst();
+
+        tx.addInput(utxo.getParentTransactionHash(), utxo.getIndex(), utxo.getScriptPubKey());
+
+        tx.addOutput(Coin.ofSat(1444), p2wshOutputScript);
+
+
+        final ECKey keyFromPubKeyHashOfTheInPutUTXO = wallet.findKeyFromPubKeyHash(utxo.getScriptPubKey().getPubKeyHash(), null);
+        final Script p2PKHOutputScript_UTXO = ScriptBuilder.createP2PKHOutputScript(keyFromPubKeyHashOfTheInPutUTXO);
+
+
+        TransactionSignature sig = tx.calculateWitnessSignature(0, keyFromPubKeyHashOfTheInPutUTXO, p2PKHOutputScript_UTXO, utxo.getValue(), Transaction.SigHash.ALL, false);
+
+        TransactionWitness witness = TransactionWitness.redeemP2WPKH(sig, keyFromPubKeyHashOfTheInPutUTXO);
+
+        tx.getInput(0).withWitness(witness);
     }
 
 
