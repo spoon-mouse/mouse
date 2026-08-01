@@ -14,8 +14,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
-import static com.mouse.cmd.txtio.SendTransactionScreen.SendTxType.SEND_TX;
-import static com.mouse.cmd.txtio.SendTransactionScreen.SendTxType.SWEEP_TX;
+import static com.mouse.cmd.txtio.SendTransactionScreen.SendTxType.*;
 
 
 public class WalletScreen {
@@ -43,7 +42,7 @@ public class WalletScreen {
                     SendTransactionScreen.doTxnOfType(SEND_TX, kit);
                     break;
                 case CSV_TX:
-                    SendTransactionScreen.doTxnOfType(SEND_TX, kit);
+                    SendTransactionScreen.doTxnOfType(CSV_TX, kit);
                     break;
                 case RECIVE:
                     recive();

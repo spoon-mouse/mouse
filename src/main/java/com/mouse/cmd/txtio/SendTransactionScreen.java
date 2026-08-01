@@ -17,6 +17,7 @@ import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
+import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
@@ -52,7 +53,7 @@ public class SendTransactionScreen {
                     sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup());
                     break;
                 case SWEEP_TX:
-                    AddressAmountFee.getFeeAsSatsPerKBCoin(getFee_from_gui());
+                    AddressAmountFee.getAbsFee(getFee_from_gui());
                     sendSweepTxn(kit.wallet(), kit.peerGroup());
                     break;
             }
@@ -75,9 +76,15 @@ public class SendTransactionScreen {
         sendTxn(tx, wallet, peerGroup);
     }
 
-    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
-        final Address address = addressAmountFee.address();
+    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+
+        final Address toAddress = addressAmountFee.address();
+        final Coin amount = addressAmountFee.amount();
+        final Coin fee = addressAmountFee.fee();
+
+
+        Transaction tx = new Transaction();
 
         ScriptBuilder builder = new ScriptBuilder();
         builder.number(3);
@@ -85,33 +92,64 @@ public class SendTransactionScreen {
         builder.op(ScriptOpCodes.OP_DROP);
         builder.op(ScriptOpCodes.OP_DUP);
         builder.op(ScriptOpCodes.OP_HASH160);
+        builder.data(toAddress.getHash());
+        builder.op(ScriptOpCodes.OP_EQUALVERIFY);
+        builder.op(ScriptOpCodes.OP_CHECKSIG);
 
-        builder.data( address.getHash() );
+        Script redeemScript = builder.build();
+        Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeemScript);
+
+        tx.addOutput(amount, p2wshOutputScript);
+
+        SendRequest sendRequest = SendRequest.forTx(tx);
+        sendRequest.feePerKb = fee;
+
+        wallet.completeTx(sendRequest);
+
+        sendTxn(sendRequest.tx, wallet, peerGroup);
+    }
+
+
+    public static void fullManualTXNBuild(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+
+        final Address toAddress = addressAmountFee.address();
+        final Coin amount = addressAmountFee.amount();
+        final Coin fee = addressAmountFee.fee();
+        final Address changeAddress = wallet.freshReceiveAddress();
+
+        Transaction tx = new Transaction();
+
+        ScriptBuilder builder = new ScriptBuilder();
+        builder.number(3);
+        builder.op(ScriptOpCodes.OP_CHECKSEQUENCEVERIFY);
+        builder.op(ScriptOpCodes.OP_DROP);
+        builder.op(ScriptOpCodes.OP_DUP);
+        builder.op(ScriptOpCodes.OP_HASH160);
+        builder.data( toAddress.getHash() );
         builder.op(ScriptOpCodes.OP_EQUALVERIFY);
         builder.op(ScriptOpCodes.OP_CHECKSIG);
 
         Script redeamScript = builder.build();
         Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeamScript);
 
-
-        Transaction tx = new Transaction();
-
+        ////. P2WPKH UTXO? only works for utxo of type P2WPKH
         TransactionOutput utxo = wallet.getUnspents().getFirst();
-
-        tx.addInput(utxo.getParentTransactionHash(), utxo.getIndex(), utxo.getScriptPubKey());
-
-        tx.addOutput(Coin.ofSat(1444), p2wshOutputScript);
-
-
-        final ECKey keyFromPubKeyHashOfTheInPutUTXO = wallet.findKeyFromPubKeyHash(utxo.getScriptPubKey().getPubKeyHash(), null);
-        final Script p2PKHOutputScript_UTXO = ScriptBuilder.createP2PKHOutputScript(keyFromPubKeyHashOfTheInPutUTXO);
+        Coin changeAmount = utxo.getValue().minus(amount).minus(fee);
+        tx.addInput(utxo);
+        tx.addOutput(amount, p2wshOutputScript);
+        tx.addOutput(changeAmount, changeAddress);
 
 
-        TransactionSignature sig = tx.calculateWitnessSignature(0, keyFromPubKeyHashOfTheInPutUTXO, p2PKHOutputScript_UTXO, utxo.getValue(), Transaction.SigHash.ALL, false);
+        final ECKey utxoKey = wallet.findKeyFromPubKeyHash(utxo.getScriptPubKey().getPubKeyHash(), null);
+        final Script utxo_p2pkh_script = ScriptBuilder.createP2PKHOutputScript(utxoKey);
 
-        TransactionWitness witness = TransactionWitness.redeemP2WPKH(sig, keyFromPubKeyHashOfTheInPutUTXO);
+        TransactionSignature sig = tx.calculateWitnessSignature(0, utxoKey, utxo_p2pkh_script, utxo.getValue(), Transaction.SigHash.ALL, false);
 
-        tx.getInput(0).withWitness(witness);
+        TransactionInput input = tx.getInput(0);
+        input = input.withScriptSig(ScriptBuilder.createEmpty()).withWitness(TransactionWitness.redeemP2WPKH(sig, utxoKey));
+        tx.replaceInput(0, input);
+
+
     }
 
 
@@ -172,7 +210,7 @@ public class SendTransactionScreen {
 
     public static long getFee_from_gui() {
         long fee = textIO.newLongInputReader()
-                .withDefaultValue(1L)
+                .withDefaultValue(AddressAmountFee.MIN_FEE)
                 .withMinVal(AddressAmountFee.MIN_FEE)
                 .withMaxVal(AddressAmountFee.MAX_FEE)
                 .withInputTrimming(true)
