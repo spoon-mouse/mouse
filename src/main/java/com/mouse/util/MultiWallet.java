@@ -29,7 +29,7 @@ public class MultiWallet {
         TextTerminal terminal = textIO.getTextTerminal();
 
         try {
-                BlockStore blockStore = new SPVBlockStore(netParams, new File(WALLET_DIR_PATH+"/w1"+SPVCHAIN_FILE_POST_FIX));
+                BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH+"/w1"+SPVCHAIN_FILE_POST_FIX));
 
                 BlockChain chain = new BlockChain(NETWORK, blockStore);
                 PeerGroup peerGroup = new PeerGroup(NETWORK, chain);

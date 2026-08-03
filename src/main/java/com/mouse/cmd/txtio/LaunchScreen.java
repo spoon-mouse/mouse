@@ -1,6 +1,9 @@
 package com.mouse.cmd.txtio;
 
 import com.mouse.listener.DownloadTracker;
+import com.mouse.util.CsvAwareCoinSelector;
+import com.mouse.util.CsvP2WshSigner;
+import com.mouse.util.CsvScriptExtension;
 import com.mouse.util.WalletTable;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
@@ -10,26 +13,31 @@ import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.*;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
+import org.bitcoinj.script.Script;
+import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.SPVBlockStore;
-import org.bitcoinj.wallet.DeterministicSeed;
-import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.wallet.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 
 
 public class LaunchScreen {
 
 
     public static final BitcoinNetwork NETWORK = BitcoinNetwork.TESTNET;
-    public static final NetworkParameters netParams = NetworkParameters.of(NETWORK);
+    public static final NetworkParameters NETWORK_PARAMETERS = NetworkParameters.of(NETWORK);
     public static final String walletDirStr = "wallet";
     public static final Path WALLET_DIR_PATH = Path.of(walletDirStr);
     public static final File walletDir = new File(walletDirStr);
@@ -126,10 +134,35 @@ public class LaunchScreen {
         terminal.println();
         walletName = get_wallet_name_from_gui();
         try{
-            kit = WalletAppKit.launch(NETWORK, walletDir, walletName);
+
+
+            kit = new WalletAppKit(NETWORK_PARAMETERS, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32, walletDir, walletName) {
+
+                private  CsvScriptExtension csv =  new CsvScriptExtension();
+                @Override
+                protected List<WalletExtension> provideWalletExtensions() {
+                    return List.of(csv);
+                }
+
+                @Override
+                protected void onSetupCompleted() {
+                    List<Script> watchedScripts = csv.getRedeemScripts().stream()
+                            .map(ScriptBuilder::createP2WSHOutputScript)
+                            .collect(Collectors.toList());
+                    wallet().addWatchedScripts(watchedScripts);
+
+                    wallet().addTransactionSigner(new CsvP2WshSigner(csv.getRedeemScripts()));
+                    System.out.println("onSetupCompleted : done");
+                }
+            };
+            kit.setBlockingStartup(false);
+            kit.startAsync();
+            kit.awaitRunning();
+
             WalletScreen.show(walletName, kit);
         }catch(Exception e){
             System.out.println(e);
+            e.printStackTrace();
             terminal.println(e.getMessage());
         }
     }
@@ -161,7 +194,7 @@ public class LaunchScreen {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(netParams, new File(walletName+SPVCHAIN_FILE_POST_FIX));
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletName+SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);

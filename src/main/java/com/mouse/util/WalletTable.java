@@ -22,10 +22,15 @@ public class WalletTable {
         try {
             Files.newDirectoryStream(LaunchScreen.WALLET_DIR_PATH,"*"+ LaunchScreen.WALLET_FILE_POST_FIX).forEach(path -> {
                 try {
-                    wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile()), path.toFile()));
-                } catch (UnreadableWalletException e) {}
+
+                    wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile(),  new CsvScriptExtension() ), path.toFile()));
+                } catch (UnreadableWalletException e) {
+                    System.out.println(e);
+                }
             });
-        }catch (IOException e) {}
+        }catch (IOException e) {
+            System.out.println(e);
+        }
         return wallets;
     }
 

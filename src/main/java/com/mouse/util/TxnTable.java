@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
+import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
@@ -34,13 +35,21 @@ public class TxnTable {
     }
 
     public static String utxo_table(Wallet wallet) {
-        AsciiTable table = getTable( "value", "blockDepth", "parent txn id", "outputIdx", "dust", "address");
+        AsciiTable table = getTable( "locked", "lockValue", "value", "blockDepth", "parent txn id", "outputIdx", "dust", "address");
+
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        CsvUtil scvUtil = new CsvUtil( ext.getRedeemScripts() );
 
         Map<Sha256Hash, List<TransactionOutput>> map = wallet.getUnspents().stream().sorted((x, y) -> (int) (x.getValue().value - y.getValue().value))
                                                              .collect(groupingBy(TransactionOutput::getParentTransactionHash));
 
         map.values().stream().flatMap( l -> l.stream() ).forEach( utxo->{
-            table.addRow(utxo.getValue().value,
+
+
+
+            table.addRow(scvUtil.isTxOutputCsvScript(utxo),
+                         scvUtil.getRelativeLock(utxo),
+                         utxo.getValue().value,
                          utxo.getParentTransactionDepthInBlocks(),
                          utxo.getParentTransactionHash(),
                          utxo.getIndex(),
