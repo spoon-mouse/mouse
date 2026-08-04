@@ -208,14 +208,4 @@ public class TxnUtil {
 
         wallet.maybeCommitTx(tx);
     }
-
-
-    public static Script createP2WSHOutputScriptWithCreationTime(Script redeemScript, Instant creationTime) {
-        byte[] hash = Sha256Hash.hash(redeemScript.program());
-        return new ScriptBuilder()
-                .smallNum(0)
-                .data(hash)
-                .creationTime(creationTime)
-                .build();
-    }
 }
