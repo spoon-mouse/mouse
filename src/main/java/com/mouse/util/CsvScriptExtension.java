@@ -1,18 +1,15 @@
 package com.mouse.util;
 
-import org.bitcoinj.core.TransactionConfidence;
-import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.Script;
-import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.wallet.Wallet;
 import org.bitcoinj.wallet.WalletExtension;
 
 import java.io.*;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CsvScriptExtension implements WalletExtension {
-
 
     public static String COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS = "com.spoon.mouse.check.seq.redeem.scripts";
     private final List<Script> redeemScripts = new ArrayList<>();
@@ -34,10 +31,11 @@ public class CsvScriptExtension implements WalletExtension {
         DataOutputStream dos = new DataOutputStream(out);
         try {
             dos.writeInt(redeemScripts.size());
-            for (Script s : redeemScripts) {
-                byte[] program = s.program();
+            for (Script script : redeemScripts) {
+                byte[] program = script.program();
                 dos.writeInt(program.length);
                 dos.write(program);
+                dos.writeLong(script.creationTime().get().getEpochSecond());
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -53,8 +51,10 @@ public class CsvScriptExtension implements WalletExtension {
             int len = dis.readInt();
             byte[] program = new byte[len];
             dis.readFully(program);
-            redeemScripts.add(Script.parse(program)); // exact parse method name may vary by version
-            System.out.println("loaded: "+Script.parse(program));
+            long epochSeconds = dis.readLong();
+            Instant creationTime = Instant.ofEpochSecond(epochSeconds);
+            Script redeemScript = Script.parse(program, creationTime);
+            redeemScripts.add(redeemScript);
         }
     }
 
@@ -62,7 +62,7 @@ public class CsvScriptExtension implements WalletExtension {
         return redeemScripts;
     }
 
-    public void addRedeemScript(Script script) {
-        redeemScripts.add(script);
+    public void addRedeemScript(Script redeemScript) {
+        redeemScripts.add(redeemScript);
     }
 }

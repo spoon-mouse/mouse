@@ -28,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 
 public class TxnUtil {
@@ -72,12 +73,10 @@ public class TxnUtil {
         builder.data(toAddress.getHash());
         builder.op(ScriptOpCodes.OP_EQUALVERIFY);
         builder.op(ScriptOpCodes.OP_CHECKSIG);
-
+        builder.creationTime(Instant.now());     //META-DATA
         Script redeemScript = builder.build();
 
-        //Script p2wshOutputScript = createP2WSHOutputScriptWithCreationTime(redeemScript, Instant.now());
-        Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-
+        Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
         tx.addOutput(amount, p2wshOutputScript);
 
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
