@@ -1,41 +1,104 @@
 package com.mouse.util;
 
+import org.beryx.textio.TextIoFactory;
+import org.beryx.textio.TextTerminal;
+import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.ECKey;
 import org.bitcoinj.crypto.TransactionSignature;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
+import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.CoinSelection;
 import org.bitcoinj.wallet.DefaultCoinSelector;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
+import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 
+
 public class TxnUtil {
 
-    public static Transaction complete_txn(Wallet wallet) throws InsufficientMoneyException {
-        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+    public static void sweepTxn(Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
-        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
-        sendRequest.missingSigsMode = Wallet.MissingSigsMode.USE_DUMMY_SIG;
-        return complete_txn(sendRequest, wallet);
+        extracted(wallet, peerGroup, sendRequest);
     }
 
-    public static Transaction complete_txn(AddressAmountFee aaf, Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
+    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+        SendRequest sendRequest = SendRequest.to(addressAmountFee.address(), addressAmountFee.amount());
+        extracted(wallet, peerGroup, sendRequest);
+    }
+
+    private static void extracted(Wallet wallet, PeerGroup peerGroup, SendRequest sendRequest) throws InsufficientMoneyException, ExecutionException, InterruptedException {
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        SendRequest sendRequest = SendRequest.to(aaf.address(), aaf.amount());
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
         sendRequest.missingSigsMode = Wallet.MissingSigsMode.USE_DUMMY_SIG;
-        return complete_txn(sendRequest, wallet);
+
+        Transaction tx = complete_txn(sendRequest, wallet);
+        netBroadcast(tx, wallet, peerGroup);
     }
+
+
+
+
+
+    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+
+        final Address toAddress = addressAmountFee.address();
+        final Coin amount = addressAmountFee.amount();
+        final Coin fee = addressAmountFee.fee();
+
+        Transaction tx = new Transaction();
+
+        ScriptBuilder builder = new ScriptBuilder();
+        builder.number(confimations);
+        builder.op(ScriptOpCodes.OP_CHECKSEQUENCEVERIFY);
+        builder.op(ScriptOpCodes.OP_DROP);
+        builder.op(ScriptOpCodes.OP_DUP);
+        builder.op(ScriptOpCodes.OP_HASH160);
+        builder.data(toAddress.getHash());
+        builder.op(ScriptOpCodes.OP_EQUALVERIFY);
+        builder.op(ScriptOpCodes.OP_CHECKSIG);
+
+        Script redeemScript = builder.build();
+
+        //Script p2wshOutputScript = createP2WSHOutputScriptWithCreationTime(redeemScript, Instant.now());
+        Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeemScript);
+
+        tx.addOutput(amount, p2wshOutputScript);
+
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        SendRequest sendRequest = SendRequest.forTx(tx);
+        sendRequest.feePerKb = fee;
+        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
+
+
+        wallet.completeTx(sendRequest);
+
+        if(wallet.isAddressMine(toAddress)){
+            ext.addRedeemScript(redeemScript);
+            wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
+            System.out.println( redeemScript );
+        }
+        TxnUtil.netBroadcast(sendRequest.tx, wallet, peerGroup);
+    }
+
+
+
+
 
     public static Transaction complete_txn(SendRequest sendRequest, Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
 
@@ -92,17 +155,23 @@ public class TxnUtil {
                 if (connectedOutput == null) continue;
 
                 Script scriptPubKey = connectedOutput.getScriptPubKey();
-                if (scriptPubKey.getScriptType() != ScriptType.P2PKH) continue;
+                ScriptType type = scriptPubKey.getScriptType();
+                if (type == null) continue; // CSV / unrecognized — already handled by CsvP2WshSigner
 
                 byte[] pubKeyHash = scriptPubKey.getPubKeyHash();
                 ECKey key = wallet.findKeyFromPubKeyHash(pubKeyHash, null);
                 if (key == null) continue;
 
-                TransactionSignature sig = tx.calculateSignature(i, key, scriptPubKey, Transaction.SigHash.ALL, false);
-                Script scriptSig = ScriptBuilder.createInputScript(sig, key);
-
-                TransactionInput signedInput = input.withScriptSig(scriptSig);
-                tx.replaceInput(i, signedInput);
+                if (type == ScriptType.P2PKH) {
+                    TransactionSignature sig = tx.calculateSignature(i, key, scriptPubKey, Transaction.SigHash.ALL, false);
+                    Script scriptSig = ScriptBuilder.createInputScript(sig, key);
+                    tx.replaceInput(i, input.withScriptSig(scriptSig));
+                } else if (type == ScriptType.P2WPKH) {
+                    Coin value = connectedOutput.getValue();
+                    TransactionSignature sig = tx.calculateWitnessSignature(i, key, scriptPubKey, value, Transaction.SigHash.ALL, false);
+                    TransactionWitness witness = TransactionWitness.redeemP2WPKH(sig, key);
+                    tx.replaceInput(i, input.withWitness(witness));
+                }
             }
 
             if(tx==sendRequest.tx || tx.equals(sendRequest.tx)){
@@ -122,4 +191,39 @@ public class TxnUtil {
         return sendRequest.tx;
     }
 
+    public static void netBroadcast(Transaction tx, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
+        final TextTerminal terminal = TextIoFactory.getTextIO().getTextTerminal();
+
+        terminal.println(TxnInfo.get(tx, wallet).toString());
+
+        int now = peerGroup.numConnectedPeers();
+        int target = 3;
+        terminal.println("broadcasting...(target: " + target + " connected: " + now + ")");
+
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, target, true);
+
+        try {
+            txnCast.awaitSent().get(120, TimeUnit.SECONDS);
+            terminal.println("sent: done");
+
+            txnCast.broadcastOnly().get(120, TimeUnit.SECONDS);
+            terminal.println("broadcast: done");
+
+            txnCast.awaitRelayed().get(120, TimeUnit.SECONDS);
+            terminal.println("relayed: done");
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+        wallet.maybeCommitTx(tx);
+    }
+
+
+    public static Script createP2WSHOutputScriptWithCreationTime(Script redeemScript, Instant creationTime) {
+        byte[] hash = Sha256Hash.hash(redeemScript.program());
+        return new ScriptBuilder()
+                .smallNum(0)
+                .data(hash)
+                .creationTime(creationTime)
+                .build();
+    }
 }
