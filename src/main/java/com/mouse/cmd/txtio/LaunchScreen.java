@@ -192,7 +192,7 @@ public class LaunchScreen {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletName+SPVCHAIN_FILE_POST_FIX));
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletDirStr+"/"+walletName+SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
@@ -206,6 +206,7 @@ public class LaunchScreen {
             terminal.println("Restoring from seed...");
             listener.await();
 
+            wallet.addExtension(new CsvScriptExtension());
             wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
             terminal.println("Restored: "+walletName);
             terminal.println("balance: "+wallet.getBalance().toFriendlyString());

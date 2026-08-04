@@ -98,8 +98,6 @@ public class TxnUtil {
 
 
 
-
-
     public static Transaction complete_txn(SendRequest sendRequest, Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
@@ -110,74 +108,7 @@ public class TxnUtil {
                 wallet.decrypt(password);
             }
 
-
-            List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
-            // excludeUnsignable = false — same reason as before, otherwise your CSV
-            // output gets filtered out here before your selector even runs
-
-            Coin amount = sendRequest.tx.getValue(wallet);
-            System.out.println("Coin amount = sendRequest.tx.getValue(wallet) : "+amount);
-            CoinSelection selection = sendRequest.coinSelector.select(amount, candidates);
-
-            Coin gathered = Coin.ZERO;
-            for (TransactionOutput output : selection.gathered) {
-                sendRequest.tx.addInput(output);
-                gathered = gathered.add(output.getValue());
-                System.out.println(output);
-            }
-
-            //Coin estimatedFee = sendRequest.tx.getFee();
-            Coin estimatedFee = Coin.ofSat(200l);
-
-            System.out.println("Coin estimatedFee = : "+estimatedFee );
-
-            Coin change = gathered.subtract(amount).subtract(estimatedFee); // your manual fee calc
-            System.out.println("change: "+change);
-
-            if (change.isPositive()) {
-                sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
-            }
-
-            sendRequest.tx.setVersion(2);
-
-
-            TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(sendRequest.tx);
-
-
-            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-            CsvP2WshSigner csvP2WshSigner = new CsvP2WshSigner(ext.getRedeemScripts());
-            csvP2WshSigner.signInputs(proposal, wallet);
-
-            Transaction tx = proposal.partialTx;
-            for (int i = 0; i < tx.getInputs().size(); i++) {
-                TransactionInput input = tx.getInput(i);
-                TransactionOutput connectedOutput = input.getConnectedOutput();
-                if (connectedOutput == null) continue;
-
-                Script scriptPubKey = connectedOutput.getScriptPubKey();
-                ScriptType type = scriptPubKey.getScriptType();
-                if (type == null) continue; // CSV / unrecognized — already handled by CsvP2WshSigner
-
-                byte[] pubKeyHash = scriptPubKey.getPubKeyHash();
-                ECKey key = wallet.findKeyFromPubKeyHash(pubKeyHash, null);
-                if (key == null) continue;
-
-                if (type == ScriptType.P2PKH) {
-                    TransactionSignature sig = tx.calculateSignature(i, key, scriptPubKey, Transaction.SigHash.ALL, false);
-                    Script scriptSig = ScriptBuilder.createInputScript(sig, key);
-                    tx.replaceInput(i, input.withScriptSig(scriptSig));
-                } else if (type == ScriptType.P2WPKH) {
-                    Coin value = connectedOutput.getValue();
-                    TransactionSignature sig = tx.calculateWitnessSignature(i, key, scriptPubKey, value, Transaction.SigHash.ALL, false);
-                    TransactionWitness witness = TransactionWitness.redeemP2WPKH(sig, key);
-                    tx.replaceInput(i, input.withWitness(witness));
-                }
-            }
-
-            if(tx==sendRequest.tx || tx.equals(sendRequest.tx)){
-                System.out.println("SAME  TX: "+tx);
-            }
-
+            process_txn(sendRequest, wallet);
 
             if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
@@ -191,8 +122,71 @@ public class TxnUtil {
         return sendRequest.tx;
     }
 
+    private static void process_txn(SendRequest sendRequest, Wallet wallet) {
+
+        List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
+
+        Coin amount = sendRequest.tx.getValue(wallet);
+        CoinSelection selection = sendRequest.coinSelector.select(amount, candidates);
+
+        Coin gathered = Coin.ZERO;
+        for (TransactionOutput output : selection.gathered) {
+            sendRequest.tx.addInput(output);
+            gathered = gathered.add(output.getValue());
+            System.out.println(output);
+        }
+
+        //Coin estimatedFee = sendRequest.tx.getFee();
+        Coin estimatedFee = Coin.ofSat(200l);
+
+        Coin change = gathered.subtract(amount).subtract(estimatedFee); // your manual fee calc
+        System.out.println("change: "+change);
+
+        if (change.isPositive()) {
+            sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
+        }
+
+        sendRequest.tx.setVersion(2);
+
+        TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(sendRequest.tx);
+
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        CsvP2WshSigner csvP2WshSigner = new CsvP2WshSigner(ext.getRedeemScripts());
+        csvP2WshSigner.signInputs(proposal, wallet);
+
+        Transaction tx = proposal.partialTx;
+        for (int i = 0; i < tx.getInputs().size(); i++) {
+            TransactionInput input = tx.getInput(i);
+            TransactionOutput connectedOutput = input.getConnectedOutput();
+            if (connectedOutput == null) continue;
+
+            Script scriptPubKey = connectedOutput.getScriptPubKey();
+            ScriptType type = scriptPubKey.getScriptType();
+            if (type == null) continue; // CSV / unrecognized — already handled by CsvP2WshSigner
+
+            byte[] pubKeyHash = scriptPubKey.getPubKeyHash();
+            ECKey key = wallet.findKeyFromPubKeyHash(pubKeyHash, null);
+            if (key == null) continue;
+
+            if (type == ScriptType.P2PKH) {
+                TransactionSignature sig = tx.calculateSignature(i, key, scriptPubKey, Transaction.SigHash.ALL, false);
+                Script scriptSig = ScriptBuilder.createInputScript(sig, key);
+                tx.replaceInput(i, input.withScriptSig(scriptSig));
+            } else if (type == ScriptType.P2WPKH) {
+                Coin value = connectedOutput.getValue();
+                Script scriptCode = ScriptBuilder.createP2PKHOutputScript(pubKeyHash); // synthesized, NOT scriptPubKey
+                TransactionSignature sig = tx.calculateWitnessSignature(i, key, scriptCode, value, Transaction.SigHash.ALL, false);
+                TransactionWitness witness = TransactionWitness.redeemP2WPKH(sig, key);
+                tx.replaceInput(i, input.withWitness(witness));
+            }
+        }
+
+        System.out.println("TX: "+tx);
+    }
+
     public static void netBroadcast(Transaction tx, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
         final TextTerminal terminal = TextIoFactory.getTextIO().getTextTerminal();
+
 
         terminal.println(TxnInfo.get(tx, wallet).toString());
 
@@ -203,17 +197,16 @@ public class TxnUtil {
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, target, true);
 
         try {
-            txnCast.awaitSent().get(120, TimeUnit.SECONDS);
+            txnCast.awaitSent().get(30, TimeUnit.SECONDS);
             terminal.println("sent: done");
 
-            txnCast.broadcastOnly().get(120, TimeUnit.SECONDS);
+            txnCast.broadcastOnly().get(30, TimeUnit.SECONDS);
             terminal.println("broadcast: done");
 
-            txnCast.awaitRelayed().get(120, TimeUnit.SECONDS);
+            txnCast.awaitRelayed().get(10, TimeUnit.SECONDS);
             terminal.println("relayed: done");
-        } catch (TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        } catch (TimeoutException e) { }
+
         wallet.maybeCommitTx(tx);
     }
 
