@@ -138,19 +138,17 @@ public class LaunchScreen {
 
             kit = new WalletAppKit(NETWORK_PARAMETERS, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32, walletDir, walletName) {
 
-                private  CsvScriptExtension csv =  new CsvScriptExtension();
+                private  CsvScriptExtension csv = new CsvScriptExtension();
                 @Override
                 protected List<WalletExtension> provideWalletExtensions() {
+                    System.out.println("provideWalletExtensions : "+csv);
                     return List.of(csv);
                 }
 
                 @Override
                 protected void onSetupCompleted() {
-                    List<Script> watchedScripts = csv.getRedeemScripts().stream()
-                            .map(ScriptBuilder::createP2WSHOutputScript)
-                            .collect(Collectors.toList());
+                    List<Script> watchedScripts = csv.getRedeemScripts().stream().map(ScriptBuilder::createP2WSHOutputScript).collect(Collectors.toList());
                     wallet().addWatchedScripts(watchedScripts);
-
                     wallet().addTransactionSigner(new CsvP2WshSigner(csv.getRedeemScripts()));
                     System.out.println("onSetupCompleted : done");
                 }

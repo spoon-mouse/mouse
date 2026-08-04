@@ -20,7 +20,6 @@ import static com.mouse.util.CsvUtil.extractPubKeyHashFromRedeemScript;
 
 public class CsvP2WshSigner implements TransactionSigner {
 
-    // the redeem script this signer knows how to satisfy
     private List<Script> redeemScripts;
 
     public CsvP2WshSigner(List<Script> redeemScripts) {
@@ -37,15 +36,11 @@ public class CsvP2WshSigner implements TransactionSigner {
         Transaction tx = propTx.partialTx;
 
         for (Script redeemScript : redeemScripts) {
-
             for (int i = 0; i < tx.getInputs().size(); i++) {
-
-
 
                 TransactionInput input = tx.getInput(i);
                 TransactionOutput connectedOutput = input.getConnectedOutput();
 
-                //System.out.println("CsvP2WshSigner is having a go: "+redeemScript+" input: "+input+" connectedOutput: "+connectedOutput);
 
                 if (connectedOutput == null) {
                     //System.out.println("WHY NULL ?");
@@ -57,7 +52,6 @@ public class CsvP2WshSigner implements TransactionSigner {
                 // does this output pay to OUR redeem script (as P2WSH)?
                 Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
                 if (!scriptPubKey.equals(expectedP2wsh)) {
-                    System.out.println("signer not one of ours — leave for another signer:");
                     continue;
                 }
 

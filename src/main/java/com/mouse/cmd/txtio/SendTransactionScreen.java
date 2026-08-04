@@ -7,6 +7,7 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.ECKey;
@@ -19,6 +20,7 @@ import org.bitcoinj.wallet.DefaultCoinSelector;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 
@@ -105,6 +107,8 @@ public class SendTransactionScreen {
         builder.op(ScriptOpCodes.OP_CHECKSIG);
 
         Script redeemScript = builder.build();
+
+        //Script p2wshOutputScript = createP2WSHOutputScriptWithCreationTime(redeemScript, Instant.now());
         Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeemScript);
 
         tx.addOutput(amount, p2wshOutputScript);
@@ -113,6 +117,7 @@ public class SendTransactionScreen {
         SendRequest sendRequest = SendRequest.forTx(tx);
         sendRequest.feePerKb = fee;
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
+
 
         wallet.completeTx(sendRequest);
 
@@ -125,12 +130,22 @@ public class SendTransactionScreen {
         doSendTxn(sendRequest.tx, wallet, peerGroup);
     }
 
+    public static Script createP2WSHOutputScriptWithCreationTime(Script redeemScript, Instant creationTime) {
+        byte[] hash = Sha256Hash.hash(redeemScript.program());
+        return new ScriptBuilder()
+                .smallNum(0)
+                .data(hash)
+                .creationTime(creationTime)
+                .build();
+    }
+
     public static void doSendTxn(Transaction tx , Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         terminal.println( TxnInfo.get(tx, wallet).toString() );
 
         int now = peerGroup.numConnectedPeers();
-        int target = Math.max(now-2, MIN_TO_BROADCAST_TXN);
+        int target = 3;
+                //Math.max(now-2, MIN_TO_BROADCAST_TXN);
         terminal.println("broadcasting...(target: "+target+" connected: "+now+")" );
 
         PeerAddListener peerAdd = new PeerAddListener();
@@ -143,8 +158,8 @@ public class SendTransactionScreen {
         txnCast.broadcastOnly().get();
         terminal.println("broadcast: done");
 
-        txnCast.awaitRelayed().get();
-        terminal.println("relayed: done");
+       // txnCast.awaitRelayed().get();
+       // terminal.println("relayed: done");
         peerGroup.removeConnectedEventListener(peerAdd);
 
         wallet.maybeCommitTx(tx);
@@ -198,47 +213,4 @@ public class SendTransactionScreen {
         return l;
     }
 
-
-
-    public static void fullManualTXNBuild(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-
-        final Address toAddress = addressAmountFee.address();
-        final Coin amount = addressAmountFee.amount();
-        final Coin fee = addressAmountFee.fee();
-        final Address changeAddress = wallet.freshReceiveAddress();
-
-        Transaction tx = new Transaction();
-
-        ScriptBuilder builder = new ScriptBuilder();
-        builder.number(3);
-        builder.op(ScriptOpCodes.OP_CHECKSEQUENCEVERIFY);
-        builder.op(ScriptOpCodes.OP_DROP);
-        builder.op(ScriptOpCodes.OP_DUP);
-        builder.op(ScriptOpCodes.OP_HASH160);
-        builder.data( toAddress.getHash() );
-        builder.op(ScriptOpCodes.OP_EQUALVERIFY);
-        builder.op(ScriptOpCodes.OP_CHECKSIG);
-
-        Script redeamScript = builder.build();
-        Script p2wshOutputScript = ScriptBuilder.createP2WSHOutputScript(redeamScript);
-
-        ////. P2WPKH UTXO? only works for utxo of type P2WPKH
-        TransactionOutput utxo = wallet.getUnspents().getFirst();
-        Coin changeAmount = utxo.getValue().minus(amount).minus(fee);
-        tx.addInput(utxo);
-        tx.addOutput(amount, p2wshOutputScript);
-        tx.addOutput(changeAmount, changeAddress);
-
-
-        final ECKey utxoKey = wallet.findKeyFromPubKeyHash(utxo.getScriptPubKey().getPubKeyHash(), null);
-        final Script utxo_p2pkh_script = ScriptBuilder.createP2PKHOutputScript(utxoKey);
-
-        TransactionSignature sig = tx.calculateWitnessSignature(0, utxoKey, utxo_p2pkh_script, utxo.getValue(), Transaction.SigHash.ALL, false);
-
-        TransactionInput input = tx.getInput(0);
-        input = input.withScriptSig(ScriptBuilder.createEmpty()).withWitness(TransactionWitness.redeemP2WPKH(sig, utxoKey));
-        tx.replaceInput(0, input);
-
-
-    }
 }

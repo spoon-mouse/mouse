@@ -13,7 +13,8 @@ import java.util.List;
 
 public class CsvScriptExtension implements WalletExtension {
 
-    public static final String COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS = "com.spoon.mouse.check.seq.redeem.scripts";
+
+    public static String COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS = "com.spoon.mouse.check.seq.redeem.scripts";
     private final List<Script> redeemScripts = new ArrayList<>();
 
     @Override
@@ -23,8 +24,6 @@ public class CsvScriptExtension implements WalletExtension {
 
     @Override
     public boolean isWalletExtensionMandatory() {
-        // true = wallet refuses to load if this extension can't be deserialized
-        // false = wallet loads anyway, extension data just silently missing
         return true; // you probably want true — silently losing CSV scripts is bad
     }
 
@@ -66,30 +65,4 @@ public class CsvScriptExtension implements WalletExtension {
     public void addRedeemScript(Script script) {
         redeemScripts.add(script);
     }
-
-
-
-    public boolean isTxOutputCsvScript(TransactionOutput output) {
-        for (Script redeemScript : redeemScripts) {
-            Script scriptPubKey = output.getScriptPubKey();
-            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-            if (scriptPubKey.equals(expectedP2wsh)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public Script getRedeemScriptForTxOutput(TransactionOutput output) {
-        for (Script redeemScript : redeemScripts) {
-            Script scriptPubKey = output.getScriptPubKey();
-            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-            if (scriptPubKey.equals(expectedP2wsh)) {
-                return redeemScript;
-            }
-        }
-        return null;
-    }
-
-
 }

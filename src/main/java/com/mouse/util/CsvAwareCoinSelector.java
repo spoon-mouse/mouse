@@ -1,7 +1,6 @@
 package com.mouse.util;
 
 import org.bitcoinj.base.Coin;
-import org.bitcoinj.core.TransactionConfidence;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.*;
 import org.bitcoinj.wallet.CoinSelector;
@@ -17,7 +16,6 @@ public class CsvAwareCoinSelector implements CoinSelector {
     private List<Script> redeemScripts;
 
 
-
     public CsvAwareCoinSelector(CoinSelector delegate, List<Script> redeemScripts) {
         this.delegate = delegate;
         this.redeemScripts = redeemScripts;
@@ -31,13 +29,11 @@ public class CsvAwareCoinSelector implements CoinSelector {
 
             System.out.println("candidates: "+output);
 
-
             Script scriptPubKey = output.getScriptPubKey();
             Script matchedRedeemScript = null;
 
             for (Script redeemScript : redeemScripts) {
                 if (scriptPubKey.equals(ScriptBuilder.createP2WSHOutputScript(redeemScript))) {
-                    System.out.println("ONE of mine match redeemScript");
                     matchedRedeemScript = redeemScript;
                     break;
                 }
@@ -49,7 +45,7 @@ public class CsvAwareCoinSelector implements CoinSelector {
                 if (depth < requiredConfirmations) {
                     continue; // immature CSV output — exclude
                 }
-                System.out.println("SELECTED ONE OF mine which is unlocked by confirmations");
+                System.out.println("SELECTED: "+output);
             }
 
             filtered.add(output); // either a normal output, or a mature CSV output
