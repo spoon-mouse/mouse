@@ -27,8 +27,6 @@ public class CsvAwareCoinSelector implements CoinSelector {
 
         for (TransactionOutput output : candidates) {
 
-            System.out.println("candidates: "+output);
-
             Script scriptPubKey = output.getScriptPubKey();
             Script matchedRedeemScript = null;
 
@@ -45,9 +43,9 @@ public class CsvAwareCoinSelector implements CoinSelector {
                 if (depth < requiredConfirmations) {
                     continue; // immature CSV output — exclude
                 }
-                System.out.println("SELECTED: "+output);
             }
 
+            System.out.println("filter included: "+output);
             filtered.add(output); // either a normal output, or a mature CSV output
         }
         return delegate.select(target, filtered);

@@ -11,6 +11,7 @@ import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.*;
+import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
@@ -31,6 +32,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static java.util.stream.Collectors.toList;
+import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 
 public class LaunchScreen {
@@ -147,7 +150,11 @@ public class LaunchScreen {
 
                 @Override
                 protected void onSetupCompleted() {
-                    List<Script> watchedScripts = csv.getRedeemScripts().stream().map(ScriptBuilder::createP2WSHOutputScript).collect(Collectors.toList());
+
+                    List<Script> watchedScripts = csv.getRedeemScripts().stream().map( redeemScript ->
+                                 Script.parse(createP2WSHOutputScript(redeemScript).program(), redeemScript.creationTime().get() ))
+                            .collect(toList());
+
                     wallet().addWatchedScripts(watchedScripts);
                     wallet().addTransactionSigner(new CsvP2WshSigner(csv.getRedeemScripts()));
                     System.out.println("onSetupCompleted : done");
