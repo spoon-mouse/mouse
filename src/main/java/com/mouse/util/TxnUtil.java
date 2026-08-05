@@ -150,7 +150,8 @@ public class TxnUtil {
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
 
-        CoinSelection selection = sendRequest.coinSelector.select(addressAmountFee.amount(), candidates);
+        Coin target = addressAmountFee.amount().add(addressAmountFee.fee());
+        CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
 
         Coin gathered = Coin.ZERO;
         for (TransactionOutput output : selection.gathered) {
