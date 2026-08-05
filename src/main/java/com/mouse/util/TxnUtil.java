@@ -34,6 +34,9 @@ public class TxnUtil {
 
     public static void sweepTxn(Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
+        //Transaction txn = selectTxnInputs( addressAmountFee, sendRequest, wallet);
+        //Transaction tx = deEncryptWalletAndSignTx(txn, wallet);
+        //netBroadcast(tx, wallet, peerGroup);
     }
 
     public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
@@ -46,7 +49,6 @@ public class TxnUtil {
     public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations) throws InsufficientMoneyException, ExecutionException, InterruptedException {
         final Address toAddress = addressAmountFee.address();
         final Coin amount = addressAmountFee.amount();
-        final Coin fee = addressAmountFee.fee();
 
         Transaction tx = new Transaction();
 
@@ -91,13 +93,11 @@ public class TxnUtil {
                 password=get_password_from_gui();
                 wallet.decrypt(password);
             }
-
             txn =  signTransaction(txn, wallet);
 
             if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
             }
-
             return txn;
         }finally {
             if(!wallet.isEncrypted() && walletEncrypted_at_start){
