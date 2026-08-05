@@ -149,7 +149,6 @@ public class TxnUtil {
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
-        sendRequest.missingSigsMode = Wallet.MissingSigsMode.USE_DUMMY_SIG;
 
         CoinSelection selection = sendRequest.coinSelector.select(addressAmountFee.amount(), candidates);
 
