@@ -37,16 +37,13 @@ public class TxnUtil {
     }
 
     public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-        Transaction tx = complete_txn(addressAmountFee, wallet);
+        SendRequest sendRequest = SendRequest.to(addressAmountFee.address(), addressAmountFee.amount());
+        Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet);
+        Transaction tx = deEncryptWalletAndSignTx(txn, wallet);
         netBroadcast(tx, wallet, peerGroup);
     }
 
-
-
-
-
     public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations) throws InsufficientMoneyException, ExecutionException, InterruptedException {
-
         final Address toAddress = addressAmountFee.address();
         final Coin amount = addressAmountFee.amount();
         final Coin fee = addressAmountFee.fee();
@@ -69,31 +66,26 @@ public class TxnUtil {
         p2wshOutputScript = Script.parse(p2wshOutputScript.program(), redeemScript.creationTime().get() );
         tx.addOutput(amount, p2wshOutputScript);
 
-        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+
         SendRequest sendRequest = SendRequest.forTx(tx);
-        sendRequest.feePerKb = fee;
-        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
-
-
-        wallet.completeTx(sendRequest);
+        tx = selectTxnInputs(addressAmountFee, sendRequest, wallet);
+        tx = deEncryptWalletAndSignTx(tx, wallet);
 
         if(wallet.isAddressMine(toAddress)){
-            final TextTerminal terminal = TextIoFactory.getTextIO().getTextTerminal();
-            terminal.println(redeemScript+" "+redeemScript.creationTime());
+            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
             ext.addRedeemScript(redeemScript);
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
             System.out.println( redeemScript );
         }
-        netBroadcast(sendRequest.tx, wallet, peerGroup);
+        netBroadcast(tx, wallet, peerGroup);
     }
 
 
 
-    public static Transaction complete_txn(AddressAmountFee addressAmountFee, Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
+    public static Transaction deEncryptWalletAndSignTx(Transaction txn , Wallet wallet) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
         CharSequence password=null;
-        Transaction txn = createTxn(addressAmountFee, wallet);
         try {
             if(walletEncrypted_at_start) {
                 password=get_password_from_gui();
@@ -152,11 +144,9 @@ public class TxnUtil {
         return txn;
     }
 
-    private static Transaction createTxn(AddressAmountFee addressAmountFee, Wallet wallet) {
+    private static Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest, Wallet wallet) {
 
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
-
-        SendRequest sendRequest = SendRequest.to(addressAmountFee.address(), addressAmountFee.amount());
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
         sendRequest.missingSigsMode = Wallet.MissingSigsMode.USE_DUMMY_SIG;
