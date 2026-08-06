@@ -81,6 +81,7 @@ public class CsvP2WshSigner implements TransactionSigner {
 
                 TransactionWitness witness = TransactionWitness.of(List.of(
                         sig.encodeToBitcoin(),
+                        key.getPubKey(),
                         redeemScript.program()
                 ));
 
