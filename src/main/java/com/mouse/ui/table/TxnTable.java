@@ -1,5 +1,8 @@
 package com.mouse.ui.table;
 
+import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.backend.csv.CsvUtil;
+import com.mouse.backend.txn.TxnInfo;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestWord;
 import org.bitcoinj.base.Address;
@@ -11,10 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.mouse.backend.MouseConfig.NETWORK;
-import static com.mouse.backend.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static com.mouse.backend.Config.NETWORK;
+import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.toList;
 
 public class TxnTable {
 

@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.csv;
 
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.TransactionOutput;
@@ -8,7 +8,7 @@ import org.bitcoinj.wallet.CoinSelector;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.mouse.backend.CsvUtil.extractCsvSequenceFromScript;
+import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
 
 public class CsvAwareCoinSelector implements CoinSelector {
 

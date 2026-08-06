@@ -1,5 +1,11 @@
-package com.mouse.backend;
+package com.mouse.backend.txn;
 
+import com.mouse.backend.AddressAmountFee;
+import com.mouse.backend.BroadcastProgressListener;
+import com.mouse.backend.PasswordPrompt;
+import com.mouse.backend.csv.CsvAwareCoinSelector;
+import com.mouse.backend.csv.CsvP2WshSigner;
+import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
@@ -22,8 +28,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static com.mouse.backend.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
-import static com.mouse.backend.CsvUtil.validateConfimationCsvSequenceNumber;
+import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 /**
@@ -36,7 +42,7 @@ public class TxnUtil {
 
     // network is passed in explicitly now rather than pulled from a UI-layer constant
     public static void sweepTxn(Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network,
-                                 PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
+                                PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
             throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
         //Transaction txn = selectTxnInputs( addressAmountFee, sendRequest, wallet, network);
@@ -45,7 +51,7 @@ public class TxnUtil {
     }
 
     public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network,
-                                PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
+                               PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
             throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         SendRequest sendRequest = SendRequest.to(addressAmountFee.address(), addressAmountFee.amount());
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet, network);

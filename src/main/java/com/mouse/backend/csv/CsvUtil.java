@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.csv;
 
 import org.bitcoinj.base.internal.ByteUtils;
 import org.bitcoinj.core.TransactionOutput;
@@ -15,12 +15,6 @@ public class CsvUtil {
     }
 
 
-    public boolean hasOutputLockedByCSV( List<TransactionOutput> outputs) {
-        for (TransactionOutput output : outputs)
-            if(isTxOutputCsvScript(output))
-                return true;
-        return false;
-    }
 
 
     public boolean isTxOutputCsvScript( TransactionOutput output) {
@@ -32,17 +26,6 @@ public class CsvUtil {
             }
         }
         return false;
-    }
-
-    public Script getRedeemScriptForTxOutput(TransactionOutput output) {
-        for (Script redeemScript : redeemScripts) {
-            Script scriptPubKey = output.getScriptPubKey();
-            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-            if (scriptPubKey.equals(expectedP2wsh)) {
-                return redeemScript;
-            }
-        }
-        return null;
     }
 
 

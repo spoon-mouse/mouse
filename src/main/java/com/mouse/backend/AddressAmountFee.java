@@ -8,6 +8,7 @@ public record AddressAmountFee(Address address, Coin amount, Coin fee) {
 
     public static long MIN_FEE=1;
     public static long MAX_FEE=1000;
+
     public static AddressAmountFee get(String address, long amount, long fee, Wallet wallet) throws IllegalArgumentException{
 
         final Coin coinFee = getAbsFee(fee);

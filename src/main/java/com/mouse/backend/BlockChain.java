@@ -1,9 +1,8 @@
 package com.mouse.backend;
 
-import org.bitcoinj.base.BitcoinNetwork;
+import com.mouse.backend.csv.CsvP2WshSigner;
+import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.ScriptType;
-import org.bitcoinj.core.BlockChain;
-import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
@@ -21,8 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
-import static com.mouse.backend.MouseConfig.*;
-import static com.mouse.backend.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static com.mouse.backend.Config.*;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
@@ -35,17 +33,18 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
  * depend on this class + plain Wallet objects, never on PeerGroup/BlockChain/BlockStore
  * directly.
  */
-public class MouseNode {
+public class BlockChain {
 
-    private static MouseNode instance;
+    public static final int WAIT_MIN_NUM_PEERS = 3;
+    private static BlockChain instance;
 
     private final BlockStore blockStore;
-    private final BlockChain chain;
+    private final org.bitcoinj.core.BlockChain chain;
     private final PeerGroup peerGroup;
 
     private final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
 
-    private MouseNode(BlockStore blockStore, BlockChain chain, PeerGroup peerGroup) {
+    private BlockChain(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
         this.blockStore = blockStore;
         this.chain = chain;
         this.peerGroup = peerGroup;
@@ -61,22 +60,21 @@ public class MouseNode {
      *                         listener, or DownloadProgressTracker's own no-op
      *                         default if you don't care.
      */
-    public static synchronized MouseNode start(DownloadProgressTracker progressListener) throws BlockStoreException {
+    public static synchronized BlockChain start(DownloadProgressTracker progressListener) throws BlockStoreException {
         if (instance != null) {
             return instance;
         }
 
-        BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS,
-                new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
+        BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
 
-        BlockChain chain = new BlockChain(NETWORK, blockStore);
+        org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
         PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
         peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
 
         peerGroup.start();
 
         try {
-            peerGroup.waitForPeers(3).get();
+            peerGroup.waitForPeers(WAIT_MIN_NUM_PEERS).get();
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
         }
@@ -88,13 +86,13 @@ public class MouseNode {
             Thread.currentThread().interrupt();
         }
 
-        instance = new MouseNode(blockStore, chain, peerGroup);
+        instance = new BlockChain(blockStore, chain, peerGroup);
         return instance;
     }
 
-    public static MouseNode get() {
+    public static BlockChain get() {
         if (instance == null) {
-            throw new IllegalStateException("MouseNode.start(...) has not been called yet");
+            throw new IllegalStateException("BlockChain.start(...) has not been called yet");
         }
         return instance;
     }
@@ -160,7 +158,7 @@ public class MouseNode {
         return peerGroup;
     }
 
-    public BlockChain chain() {
+    public org.bitcoinj.core.BlockChain chain() {
         return chain;
     }
 

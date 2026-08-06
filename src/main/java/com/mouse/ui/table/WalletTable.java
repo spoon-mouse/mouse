@@ -1,6 +1,7 @@
 package com.mouse.ui.table;
 
-import com.mouse.backend.MouseConfig;
+import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.backend.Config;
 import com.mouse.backend.WalletNameId;
 import de.vandermeer.asciitable.AsciiTable;
 import org.bitcoinj.wallet.UnreadableWalletException;
@@ -20,7 +21,7 @@ public class WalletTable {
     public static List<WalletNameId> listOfWallets(){
         List<WalletNameId> wallets = new ArrayList<>();
         try {
-            Files.newDirectoryStream(MouseConfig.WALLET_DIR_PATH,"*"+ MouseConfig.WALLET_FILE_POST_FIX).forEach(path -> {
+            Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
                 try {
 
                     wallets.add(WalletNameId.get(Wallet.loadFromFile(path.toFile(),  new CsvScriptExtension() ), path.toFile()));

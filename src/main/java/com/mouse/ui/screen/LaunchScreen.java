@@ -1,8 +1,8 @@
 package com.mouse.ui.screen;
 
 import com.mouse.ui.listener.DownloadTracker;
-import com.mouse.backend.CsvP2WshSigner;
-import com.mouse.backend.CsvScriptExtension;
+import com.mouse.backend.csv.CsvP2WshSigner;
+import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.ui.table.WalletTable;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static com.mouse.backend.MouseConfig.*;
+import static com.mouse.backend.Config.*;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
@@ -35,7 +35,7 @@ public class LaunchScreen {
 
     // UI-only constants — regex for TextIO input validation, screen title,
     // shutdown timeout, and default values shown in prompts. App-wide config
-    // (network, file paths) lives in com.mouse.backend.MouseConfig instead.
+    // (network, file paths) lives in com.mouse.backend.Config instead.
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
     public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
     public static final int WALLET_CLOSE_TIMEOUT_SECONDS = 60;

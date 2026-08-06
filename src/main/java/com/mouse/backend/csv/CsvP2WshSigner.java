@@ -1,7 +1,6 @@
-package com.mouse.backend;
+package com.mouse.backend.csv;
 
 import org.bitcoinj.base.Coin;
-import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionInput;
 import org.bitcoinj.core.TransactionOutput;
@@ -15,8 +14,8 @@ import org.bitcoinj.wallet.KeyBag;
 
 import java.util.List;
 
-import static com.mouse.backend.CsvUtil.extractCsvSequenceFromScript;
-import static com.mouse.backend.CsvUtil.extractPubKeyHashFromRedeemScript;
+import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
+import static com.mouse.backend.csv.CsvUtil.extractPubKeyHashFromRedeemScript;
 
 public class CsvP2WshSigner implements TransactionSigner {
 

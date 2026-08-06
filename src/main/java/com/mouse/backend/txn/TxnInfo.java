@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.txn;
 
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
@@ -8,7 +8,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.util.List;
 
-import static com.mouse.backend.MouseConfig.NETWORK;
+import static com.mouse.backend.Config.NETWORK;
 
 public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxType type, long total, long fee) {
 

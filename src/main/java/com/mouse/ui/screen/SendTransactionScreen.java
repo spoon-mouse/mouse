@@ -1,7 +1,7 @@
 package com.mouse.ui.screen;
 
 import com.mouse.backend.*;
-import static com.mouse.backend.MouseConfig.NETWORK;
+import static com.mouse.backend.Config.NETWORK;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -12,8 +12,8 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
 
-import static com.mouse.backend.CsvUtil.validateConfimationCsvSequenceNumber;
-import static com.mouse.backend.TxnUtil.*;
+import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
+import static com.mouse.backend.txn.TxnUtil.*;
 
 
 public class SendTransactionScreen {

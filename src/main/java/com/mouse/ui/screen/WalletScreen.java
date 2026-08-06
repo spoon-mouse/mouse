@@ -47,7 +47,7 @@ public class WalletScreen {
                     recive();
                     break;
                 case HIST:
-                    WalletHistoryScreen.show(walletName, kit.wallet());
+                    HistoryScreen.show(walletName, kit.wallet());
                     break;
                 case INFO:
                     show_wallet_info();

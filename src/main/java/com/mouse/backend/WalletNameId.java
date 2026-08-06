@@ -5,7 +5,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
 
-import static com.mouse.backend.MouseConfig.WALLET_FILE_POST_FIX;
+import static com.mouse.backend.Config.WALLET_FILE_POST_FIX;
 
 
 public record WalletNameId(Wallet wallet, String name, String id) {
