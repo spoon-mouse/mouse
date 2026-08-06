@@ -73,6 +73,31 @@ public class CsvUtil {
         throw new IllegalArgumentException("No pubkey hash found after OP_HASH160 in redeem script: "+redeemScript);
     }
 
+
+    public static long validateConfimationCsvSequenceNumber(long confirmations){
+        if (confirmations <= 0) {
+            throw new IllegalArgumentException("CSV block count must be positive: " + confirmations);
+        }
+        if (confirmations > 0xFFFF) {
+            throw new IllegalArgumentException(
+                    "CSV block count exceeds BIP68's 16-bit value range (max 65535): " + confirmations);
+        }
+
+        if ((confirmations & 0x80000000L) != 0) {
+            throw new IllegalStateException("CSV sequence has disable flag set — timelock would be ignored: " + confirmations);
+        }
+        if ((confirmations & 0x00400000L) != 0) {
+            throw new IllegalStateException("CSV sequence has time-based type flag set, expected block-based: " + confirmations);
+        }
+        long value = confirmations & 0x0000FFFFL;
+        if (confirmations != value) {
+            throw new IllegalStateException("CSV sequence has bits set outside the valid value/flag range: " + confirmations);
+        }
+
+        return confirmations;
+    }
+
+
     public static long extractCsvSequenceFromScript(Script redeemScript) {
         List<ScriptChunk> chunks = redeemScript.getChunks();
 
@@ -86,12 +111,12 @@ public class CsvUtil {
 
                 // OP_1..OP_16: value is encoded directly in the opcode
                 if (valueChunk.isOpCode()) {
-                    return valueChunk.decodeOpN();
+                    return validateConfimationCsvSequenceNumber(valueChunk.decodeOpN());
                 }
 
                 // otherwise it's pushdata — decode as a minimally-encoded script number
                 if (valueChunk.data != null) {
-                    return ByteUtils.decodeMPI(ByteUtils.reverseBytes(valueChunk.data), false).longValue();
+                    return validateConfimationCsvSequenceNumber(ByteUtils.decodeMPI(ByteUtils.reverseBytes(valueChunk.data), false).longValue());
                 }
 
 

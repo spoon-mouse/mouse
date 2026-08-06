@@ -11,6 +11,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
 
+import static com.mouse.util.CsvUtil.validateConfimationCsvSequenceNumber;
 import static com.mouse.util.TxnUtil.*;
 
 
@@ -108,6 +109,9 @@ public class SendTransactionScreen {
                 .withMaxVal(1000l)
                 .withInputTrimming(true)
                 .read("chain depth lock:");
+
+        validateConfimationCsvSequenceNumber(l);
+
         return l;
     }
 

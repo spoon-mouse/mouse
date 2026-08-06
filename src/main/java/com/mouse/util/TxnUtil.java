@@ -27,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 import static com.mouse.cmd.txtio.LaunchScreen.NETWORK;
 import static com.mouse.cmd.txtio.LaunchScreen.get_password_from_gui;
 import static com.mouse.util.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static com.mouse.util.CsvUtil.validateConfimationCsvSequenceNumber;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 
@@ -47,10 +48,11 @@ public class TxnUtil {
     }
 
     public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+
+        validateConfimationCsvSequenceNumber(confimations);
+
         final Address toAddress = addressAmountFee.address();
         final Coin amount = addressAmountFee.amount();
-
-        Transaction tx = new Transaction();
 
         ScriptBuilder builder = new ScriptBuilder();
         builder.number(confimations);
@@ -66,8 +68,9 @@ public class TxnUtil {
 
         Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
         p2wshOutputScript = Script.parse(p2wshOutputScript.program(), redeemScript.creationTime().get() );
-        tx.addOutput(amount, p2wshOutputScript);
 
+        Transaction tx = new Transaction();
+        tx.addOutput(amount, p2wshOutputScript);
 
         SendRequest sendRequest = SendRequest.forTx(tx);
         tx = selectTxnInputs(addressAmountFee, sendRequest, wallet);
