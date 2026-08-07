@@ -55,11 +55,6 @@ public class Kit {
      * Starts the shared node: opens one block store, one chain, one peer group,
      * for the whole app. Call once, at application startup.
      *
-     * @param progressListener notified of blockchain download progress. Backend has
-     *                         no opinion on how progress is displayed — pass a
-     *                         terminal-printing listener, a mobile progress-bar
-     *                         listener, or DownloadProgressTracker's own no-op
-     *                         default if you don't care.
      */
     public static synchronized void start() throws BlockStoreException {
         if (instance != null) {
@@ -127,21 +122,6 @@ public class Kit {
         wallet.addTransactionSigner(new CsvP2WshSigner(csv.getRedeemScripts()));
     }
 
-    /**
-     * Detaches a wallet from the shared chain/peer group and saves it to disk.
-     * Does NOT stop the shared node — other wallets keep running.
-     */
-    public synchronized void closeWallet(String walletName) throws IOException {
-        Wallet wallet = wallets.remove(walletName);
-        if (wallet == null) return;
-
-        peerGroup.removeWallet(wallet);
-        chain.removeWallet(wallet);
-
-        File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
-        wallet.saveToFile(walletFile);
-    }
-
     public static PeerGroup peerGroup() {
         return peerGroup;
     }
@@ -159,23 +139,42 @@ public class Kit {
     }
 
     /**
+     * Detaches a wallet from the shared chain/peer group and saves it to disk.
+     * Does NOT stop the shared node — other wallets keep running.
+     */
+    public static synchronized void closeWallet(String walletName) throws IOException {
+        Wallet wallet = wallets.remove(walletName);
+        if (wallet == null) return;
+
+        peerGroup.removeWallet(wallet);
+        chain.removeWallet(wallet);
+
+        File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
+        wallet.saveToFile(walletFile);
+    }
+
+    /**
      * Stops the shared node entirely — call once, at application shutdown.
      * Saves every currently loaded wallet first.
      */
     public static synchronized void stop() {
-        for (Map.Entry<String, Wallet> entry : wallets.entrySet()) {
+
+        for (String walletName : wallets.keySet()) {
             try {
-                entry.getValue().saveToFile(new File(walletDirStr, entry.getKey() + WALLET_FILE_POST_FIX));
+                closeWallet(walletName);
             } catch (IOException e) {
-                System.out.println("Failed saving wallet " + entry.getKey() + ": " + e.getMessage());
+                throw new RuntimeException(e);
             }
         }
+
         peerGroup.stop();
+
         try {
             blockStore.close();
         } catch (BlockStoreException e) {
-            System.out.println("Failed closing block store: " + e.getMessage());
+            throw new RuntimeException(e);
         }
+
         instance = null;
     }
 

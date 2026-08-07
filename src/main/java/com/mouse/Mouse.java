@@ -13,7 +13,7 @@ public class Mouse {
 
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException, BlockStoreException {
-        LaunchScreen.launch();
+        new LaunchScreen();
     }
 
 }

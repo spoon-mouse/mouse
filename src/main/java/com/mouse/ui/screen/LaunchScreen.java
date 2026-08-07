@@ -33,40 +33,26 @@ public class LaunchScreen {
     // (network, file paths) lives in com.mouse.backend.util.Config instead.
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
     public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
-    public static final int WALLET_CLOSE_TIMEOUT_SECONDS = 60;
 
     private static final String  DEFAULT_WALLET_NAME = "wallet";
 
-    private static TextIO textIO;
-    private static TextTerminal terminal;
+    private static TextIO textIO = TextIoFactory.getTextIO();
+    private static TextTerminal terminal = textIO.getTextTerminal();
 
-    public enum Choice {
-        WALLET, RESTORE, DIGEST, EXIT
-    }
+    public enum Choice {WALLET, RESTORE, DIGEST, EXIT}
 
-    public static void main(String[] args) throws BlockStoreException {
-        launch();
-    }
+    public LaunchScreen() throws BlockStoreException {
+        Context context = Context.getOrCreate();
+        Context.propagate(context);
 
-    public static void launch() throws BlockStoreException {
         Kit.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(LaunchScreen::stop));
+        Runtime.getRuntime().addShutdownHook(new Thread(Kit::stop));
         show();
-    }
-
-    private static void stop() {
-        Kit.stop();
     }
 
 
     public static void show(){
-        textIO = TextIoFactory.getTextIO();
-        terminal = textIO.getTextTerminal();
-
         while(true) {
-            Context context = Context.getOrCreate();
-            Context.propagate(context);
-
             Choice choice = textIO.newEnumInputReader(Choice.class).read(APP_TITLE_LINE);
             switch (choice) {
                 case WALLET:
@@ -111,7 +97,7 @@ public class LaunchScreen {
             seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
         }
 
-        walletName=get_wallet_name_from_gui();
+        String walletName=get_wallet_name_from_gui();
         try {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
