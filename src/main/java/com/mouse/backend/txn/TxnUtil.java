@@ -180,6 +180,7 @@ public class TxnUtil {
                 if (utxo.getParentTransactionHash().equals( hash )) {
                     sendRequest.tx.addInput(utxo);
                     gathered = gathered.add(utxo.getValue());
+                    System.out.println("PICKED: "+utxo);
                     break;
                 }
             }
