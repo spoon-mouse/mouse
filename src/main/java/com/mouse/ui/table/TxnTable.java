@@ -5,6 +5,7 @@ import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.txn.TxnInfo;
 import de.vandermeer.asciitable.AsciiTable;
 import de.vandermeer.asciitable.CWC_LongestWord;
+import de.vandermeer.skb.interfaces.transformers.textformat.TextAlignment;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
@@ -47,8 +48,6 @@ public class TxnTable {
                                                              .collect(groupingBy(TransactionOutput::getParentTransactionHash));
 
         map.values().stream().flatMap( l -> l.stream() ).forEach( utxo->{
-
-
 
             table.addRow(scvUtil.isTxOutputCsvScript(utxo),
                          scvUtil.getRelativeLock(utxo),
@@ -145,6 +144,7 @@ public class TxnTable {
         AsciiTable table = new AsciiTable();
         table.getRenderer().setCWC(new CWC_LongestWord());
         table.setPaddingLeftRight(2);
+        table.setTextAlignment(TextAlignment.RIGHT);
         table.addRule();
         table.addRow(col);
         table.addRule();
