@@ -152,8 +152,7 @@ public class Kit {
         peerGroup.removeWallet(wallet);
         chain.removeWallet(wallet);
 
-        File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
-        wallet.saveToFile(walletFile);
+        save(walletName);
     }
 
     /**

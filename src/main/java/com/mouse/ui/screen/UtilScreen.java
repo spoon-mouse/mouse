@@ -35,6 +35,7 @@ public class UtilScreen {
                     Kit.peerGroup().startBlockChainDownload(new DownloadProgressTracker());
                     break;
                 case SAVE:
+                    terminal.println("saving:");
                     Kit.save();
                     break;
                 case BACK:
