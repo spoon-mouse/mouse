@@ -1,5 +1,7 @@
 package com.mouse.ui.listener;
 
+import org.beryx.textio.TextIO;
+import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.core.Block;
 import org.bitcoinj.core.FilteredBlock;
@@ -14,11 +16,11 @@ public class DownloadTracker extends DownloadProgressTracker {
     private long chainSize = Long.MAX_VALUE;
     private boolean first=true;
 
-    private TextTerminal terminal;
+    private  TextIO textIO = TextIoFactory.getTextIO();
+    private  TextTerminal terminal = textIO.getTextTerminal();
 
-    public DownloadTracker(TextTerminal terminal) {
-        this.terminal=terminal;
-    }
+
+    public DownloadTracker() { }
 
     @Override
     public void onChainDownloadStarted(Peer peer, int blocksLeft) {

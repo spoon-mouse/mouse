@@ -1,29 +1,20 @@
 package com.mouse.ui.screen;
 
 import com.mouse.backend.Kit;
-import com.mouse.ui.listener.DownloadTracker;
-import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.ui.table.WalletTable;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
-import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.*;
-import org.bitcoinj.net.discovery.DnsDiscovery;
-import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
-import org.bitcoinj.store.SPVBlockStore;
-import org.bitcoinj.wallet.*;
+import org.jline.terminal.Terminal;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.stream.Collectors;
 
 import static com.mouse.backend.util.Config.*;
-import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 
 public class LaunchScreen {
@@ -59,7 +50,7 @@ public class LaunchScreen {
                     load_wallet();
                     break;
                 case RESTORE:
-                    restore_from_seed();
+                    restore();
                     break;
                 case DIGEST:
                     digest_of_wallets();
@@ -68,6 +59,15 @@ public class LaunchScreen {
                     System.exit(0);
             }
         }
+    }
+
+    private static void restore() {
+        String seed_txt = get_seed_from_gui();
+        long epochSeconds = get_optinal_creation_epoch_seconds();
+        String walletName=get_wallet_name_from_gui();
+        terminal.print("restoring...");
+        Kit.restore_from_seed(walletName, seed_txt, epochSeconds);
+        terminal.print("restored");
     }
 
 
@@ -86,49 +86,6 @@ public class LaunchScreen {
         }
     }
 
-    private static void restore_from_seed() {
-
-        String seed_txt = get_seed_from_gui();
-        long epochSeconds = get_optinal_creation_epoch_seconds();
-        DeterministicSeed seed;
-        if(epochSeconds<=0L){
-            seed = DeterministicSeed.ofMnemonic(seed_txt, "");
-        }else{
-            seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
-        }
-
-        String walletName=get_wallet_name_from_gui();
-        try {
-            Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
-            wallet.clearTransactions(0);
-
-            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletDirStr+"/"+walletName+SPVCHAIN_FILE_POST_FIX));
-
-            BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
-            PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
-            peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
-            peerGroup.addWallet(wallet);
-
-            DownloadTracker listener = new DownloadTracker(terminal);
-            peerGroup.start();
-            peerGroup.startBlockChainDownload(listener);
-
-            terminal.println("Restoring from seed...");
-            listener.await();
-
-            wallet.addExtension(new CsvScriptExtension());
-            wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
-            terminal.println("Restored: "+walletName);
-            terminal.println("balance: "+wallet.getBalance().toFriendlyString());
-
-            peerGroup.stop();
-            blockStore.close();
-
-        } catch (Exception e) {
-            System.out.println(e);
-            terminal.println(e.getMessage());
-        }
-    }
 
     private static void digest_of_wallets() {
         terminal.println( WalletTable.get_wallet_digest_table() );
@@ -147,7 +104,6 @@ public class LaunchScreen {
         return textIO.newStringInputReader().withDefaultValue(DEFAULT_WALLET_NAME).withInputTrimming(true)
                 .read("wallet name");
     }
-
 
     public static String wallet_names_string() {
         try {

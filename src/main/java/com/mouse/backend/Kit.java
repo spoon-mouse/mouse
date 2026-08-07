@@ -2,6 +2,7 @@ package com.mouse.backend;
 
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.ui.listener.DownloadTracker;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.BlockChain;
 import org.bitcoinj.core.PeerGroup;
@@ -11,11 +12,13 @@ import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
+import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -177,6 +180,29 @@ public class Kit {
 
         instance = null;
     }
+
+
+    public static void restore_from_seed(String walletName, String seed_txt, long epochSeconds) {
+
+        DownloadTracker listener = new DownloadTracker();
+        try {
+            DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+
+            Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
+            wallet.clearTransactions(0);
+
+            peerGroup.addWallet(wallet);
+            peerGroup.startBlockChainDownload(listener);
+            listener.await();
+
+            wallet.addExtension(new CsvScriptExtension());
+            wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static int connections(){
         return peerGroup.numConnectedPeers();
