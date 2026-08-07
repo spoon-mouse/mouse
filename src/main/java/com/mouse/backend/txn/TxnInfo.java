@@ -52,10 +52,6 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         return new TxnInfo(wallet, txn, id, amount, type, total, fee);
     }
 
-    /*
-    * if its a TxType.SENT and the output with value == to amount is what was sent
-    * so that output address is the toAddress. or returns null
-     */
 
     private boolean hasMyAddress(TransactionOutput o){
         return wallet.isAddressMine( o.getScriptPubKey().getToAddress(NETWORK));

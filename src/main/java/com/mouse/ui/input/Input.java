@@ -59,7 +59,6 @@ public class Input {
         return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
     }
 
-
     public static long getEpochSeconds(){
         return textIO.newLongInputReader().withMinVal(0l).withDefaultValue(0l).read("creation epoch seconds (optionally speeds up restoration):");
     }
