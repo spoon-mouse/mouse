@@ -146,13 +146,13 @@ public class Kit {
      * Does NOT stop the shared node — other wallets keep running.
      */
     public static synchronized void closeWallet(String walletName) throws IOException {
-        Wallet wallet = wallets.remove(walletName);
+        final Wallet wallet = wallets.get(walletName);
         if (wallet == null) return;
 
         peerGroup.removeWallet(wallet);
         chain.removeWallet(wallet);
-
         save(walletName);
+        wallets.remove(walletName);
     }
 
     /**
