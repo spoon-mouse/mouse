@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.hook;
 
 /**
  * Backend-side hook for reporting broadcast progress messages, without the

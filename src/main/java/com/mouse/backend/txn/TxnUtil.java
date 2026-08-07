@@ -1,8 +1,8 @@
 package com.mouse.backend.txn;
 
-import com.mouse.backend.AddressAmountFee;
-import com.mouse.backend.BroadcastProgressListener;
-import com.mouse.backend.PasswordPrompt;
+import com.mouse.backend.util.AddressAmountFee;
+import com.mouse.backend.hook.BroadcastProgressListener;
+import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.csv.CsvAwareCoinSelector;
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;

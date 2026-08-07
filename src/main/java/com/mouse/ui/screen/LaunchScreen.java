@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static com.mouse.backend.Config.*;
+import static com.mouse.backend.util.Config.*;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
@@ -35,7 +35,7 @@ public class LaunchScreen {
 
     // UI-only constants — regex for TextIO input validation, screen title,
     // shutdown timeout, and default values shown in prompts. App-wide config
-    // (network, file paths) lives in com.mouse.backend.Config instead.
+    // (network, file paths) lives in com.mouse.backend.util.Config instead.
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
     public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
     public static final int WALLET_CLOSE_TIMEOUT_SECONDS = 60;
@@ -44,7 +44,6 @@ public class LaunchScreen {
     private static String walletName=null;
 
     private static final String  DEFAULT_WALLET_NAME = "wallet";
-    private static final String  DEFAULT_PASSWORD = "wallet.password";
 
     private static TextIO textIO;
     private static TextTerminal terminal;
@@ -108,13 +107,6 @@ public class LaunchScreen {
         }
     }
 
-
-    public static CharSequence get_password_from_gui() {
-        return textIO.newStringInputReader()
-                                        .withDefaultValue(DEFAULT_PASSWORD)
-                                        .withInputMasking(true)
-                                        .read("password");
-    }
 
     public static String get_wallet_name_from_gui() {
         return textIO.newStringInputReader().withDefaultValue(DEFAULT_WALLET_NAME).withInputTrimming(true)

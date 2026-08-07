@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
 
-import static com.mouse.ui.screen.LaunchScreen.get_password_from_gui;
+import static com.mouse.ui.screen.PasswordScreen.get_password_from_gui;
 import static com.mouse.ui.screen.SendTransactionScreen.SendTxType.*;
 
 

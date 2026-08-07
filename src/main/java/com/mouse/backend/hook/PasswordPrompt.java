@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.hook;
 
 /**
  * Backend-side hook for obtaining a wallet decryption password, without the

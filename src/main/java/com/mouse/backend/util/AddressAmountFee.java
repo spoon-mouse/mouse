@@ -1,4 +1,4 @@
-package com.mouse.backend;
+package com.mouse.backend.util;
 
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;

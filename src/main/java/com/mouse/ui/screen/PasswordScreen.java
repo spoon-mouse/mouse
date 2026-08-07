@@ -7,11 +7,11 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 
-import static com.mouse.ui.screen.LaunchScreen.get_password_from_gui;
 import static com.mouse.ui.screen.WalletScreen.BAD_WALLET_DECRYPTION;
 
 
 public class PasswordScreen {
+    public static final String  DEFAULT_PASSWORD = "wallet.password";
     public static final String PASSWORDS_DID_NOT_MATCH = "failed: new password's did not match";
     public static final String WALLET_IS_NOT_ENCRYPTED = "wallet: is NOT encrypted";
     public static final String OLD_Msg = "Old ";
@@ -25,6 +25,13 @@ public class PasswordScreen {
     private static String walletName;
     private static TextIO textIO;
     private static TextTerminal terminal;
+
+    public static CharSequence get_password_from_gui() {
+        return textIO.newStringInputReader()
+                                        .withDefaultValue(DEFAULT_PASSWORD)
+                                        .withInputMasking(true)
+                                        .read("password");
+    }
 
     public enum Choice {
         ADD, REMOVE, CHANGE, STATUS, BACK, EXIT

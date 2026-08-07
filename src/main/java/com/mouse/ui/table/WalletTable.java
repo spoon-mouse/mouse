@@ -1,8 +1,8 @@
 package com.mouse.ui.table;
 
 import com.mouse.backend.csv.CsvScriptExtension;
-import com.mouse.backend.Config;
-import com.mouse.backend.WalletNameId;
+import com.mouse.backend.util.Config;
+import com.mouse.backend.util.WalletNameId;
 import de.vandermeer.asciitable.AsciiTable;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;

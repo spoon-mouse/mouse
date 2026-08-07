@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.mouse.backend.Config.NETWORK;
+import static com.mouse.backend.util.Config.NETWORK;
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static java.util.stream.Collectors.groupingBy;
 

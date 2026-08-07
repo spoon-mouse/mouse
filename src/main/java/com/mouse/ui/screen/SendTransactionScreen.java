@@ -1,7 +1,8 @@
 package com.mouse.ui.screen;
 
-import com.mouse.backend.*;
-import static com.mouse.backend.Config.NETWORK;
+import static com.mouse.backend.util.Config.NETWORK;
+
+import com.mouse.backend.util.AddressAmountFee;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -39,16 +40,16 @@ public class SendTransactionScreen {
                     }
                     if(txType== SendTxType.SEND_TX) {
                         sendTxn(addressAmountFee, kit.wallet(), kit.peerGroup(), NETWORK,
-                                LaunchScreen::get_password_from_gui, terminal::println);
+                                PasswordScreen::get_password_from_gui, terminal::println);
                     }else {
                         long confimations = get_chain_depth_lock_gui();
                         checkSeqVerifyTxn(addressAmountFee, kit.wallet(), kit.peerGroup(), confimations, NETWORK,
-                                LaunchScreen::get_password_from_gui, terminal::println);
+                                PasswordScreen::get_password_from_gui, terminal::println);
                     }
                     break;
                 case SWEEP_TX:
                     sweepTxn(kit.wallet(), kit.peerGroup(), NETWORK,
-                            LaunchScreen::get_password_from_gui, terminal::println);
+                            PasswordScreen::get_password_from_gui, terminal::println);
                     break;
             }
         }catch (AddressFormatException e){
