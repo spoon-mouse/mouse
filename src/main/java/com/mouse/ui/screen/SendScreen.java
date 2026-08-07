@@ -3,7 +3,7 @@ package com.mouse.ui.screen;
 import static com.mouse.backend.util.Config.NETWORK;
 
 import com.mouse.backend.Kit;
-import com.mouse.backend.util.AddressAmountFee;
+import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.ui.input.Input;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
@@ -40,16 +40,16 @@ public class SendScreen {
             try {
                 switch (choice) {
                     case SEND:
-                    case CSV:
-                        AddressAmountFee addressAmountFee = get_address_amount_fee_from_gui_or_null();
-                        if (addressAmountFee == null) {
-                            return;
+                        AddressAmountFee aaf = AddressAmountFee.get();
+                        if(aaf!=null){
+                            sendTxn(aaf, wallet, pg, NETWORK, Input::getPassword, terminal::println);
                         }
-                        if (choice == choice.SEND) {
-                            sendTxn(addressAmountFee, wallet, pg, NETWORK, Input::getPassword, terminal::println);
-                        } else {
-                            long confimations = get_chain_depth_lock_gui();
-                            checkSeqVerifyTxn(addressAmountFee, wallet, pg, confimations, NETWORK, Input::getPassword, terminal::println);
+                        break;
+                    case CSV:
+                        aaf = AddressAmountFee.get();
+                        if(aaf!=null) {
+                            long conf = getConfirmation();
+                            checkSeqVerifyTxn(aaf, wallet, pg, conf, NETWORK, Input::getPassword, terminal::println);
                         }
                         break;
                     case SWEEP:
@@ -74,20 +74,5 @@ public class SendScreen {
             }
         }
     }
-
-
-    private AddressAmountFee get_address_amount_fee_from_gui_or_null() throws AddressFormatException {
-        String address = getAddress();
-        if(address==null || address.isEmpty()){
-            return null;
-        }
-        wallet.parseAddress(address);
-
-        long amount = getAmount();
-        final long fee = getFee();
-
-        return AddressAmountFee.get(address, amount, fee, wallet);
-    }
-
 
 }

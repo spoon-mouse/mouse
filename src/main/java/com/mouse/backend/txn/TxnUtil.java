@@ -1,6 +1,6 @@
 package com.mouse.backend.txn;
 
-import com.mouse.backend.util.AddressAmountFee;
+import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.backend.hook.BroadcastProgressListener;
 import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.csv.CsvAwareCoinSelector;
@@ -50,24 +50,22 @@ public class TxnUtil {
         //netBroadcast(tx, wallet, peerGroup, progress);
     }
 
-    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network,
-                               PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
-            throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-        SendRequest sendRequest = SendRequest.to(addressAmountFee.address(), addressAmountFee.amount());
+    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+
+        final Address address = wallet.parseAddress( addressAmountFee.address() );
+        final Coin amount = Coin.ofSat( addressAmountFee.amount() );
+
+        SendRequest sendRequest = SendRequest.to(address, amount);
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet, network);
         Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
         netBroadcast(tx, wallet, peerGroup, progress);
     }
 
-    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations,
-                                          org.bitcoinj.base.BitcoinNetwork network,
-                                          PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
-            throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations, org.bitcoinj.base.BitcoinNetwork network, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
+        final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
+        final Coin amount = Coin.ofSat( addressAmountFee.amount() );
         validateConfimationCsvSequenceNumber(confimations);
-
-        final Address toAddress = addressAmountFee.address();
-        final Coin amount = addressAmountFee.amount();
 
         ScriptBuilder builder = new ScriptBuilder();
         builder.number(confimations);
@@ -102,8 +100,7 @@ public class TxnUtil {
 
 
 
-    public static Transaction deEncryptWalletAndSignTx(Transaction txn, Wallet wallet, PasswordPrompt passwordPrompt)
-            throws InsufficientMoneyException, Wallet.TransactionCompletionException {
+    public static Transaction deEncryptWalletAndSignTx(Transaction txn, Wallet wallet, PasswordPrompt passwordPrompt) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
         CharSequence password=null;
@@ -169,7 +166,9 @@ public class TxnUtil {
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(network), ext.getRedeemScripts());
 
-        Coin target = addressAmountFee.amount().add(addressAmountFee.fee());
+        Coin amount = Coin.ofSat( addressAmountFee.amount() );
+        Coin fee = Coin.ofSat( addressAmountFee.fee() );
+        Coin target = amount.add( fee );
         CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
 
         Coin gathered = Coin.ZERO;
@@ -178,7 +177,7 @@ public class TxnUtil {
             gathered = gathered.add(output.getValue());
         }
 
-        Coin change = gathered.subtract(addressAmountFee.amount()).subtract(addressAmountFee.fee());
+        Coin change = gathered.subtract(amount).subtract(fee);
 
         if (change.isPositive()) {
             sendRequest.tx.addOutput(change, wallet.currentChangeAddress());

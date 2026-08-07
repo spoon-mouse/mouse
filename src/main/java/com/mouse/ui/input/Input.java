@@ -1,6 +1,5 @@
 package com.mouse.ui.input;
 
-import com.mouse.backend.util.AddressAmountFee;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 
@@ -41,7 +40,7 @@ public class Input {
         return fee;
     }
 
-    public static long get_chain_depth_lock_gui() {
+    public static long getConfirmation() {
 
         long l = textIO.newLongInputReader()
                 .withDefaultValue(1l)
@@ -77,5 +76,7 @@ public class Input {
                 .withInputMasking(true)
                 .read("password");
     }
+
+
 
 }
