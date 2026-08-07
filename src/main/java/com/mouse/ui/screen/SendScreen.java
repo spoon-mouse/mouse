@@ -4,6 +4,7 @@ import static com.mouse.backend.util.Config.NETWORK;
 
 import com.mouse.backend.Kit;
 import com.mouse.backend.util.AddressAmountFee;
+import com.mouse.ui.input.Input;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -13,8 +14,8 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
 
-import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
 import static com.mouse.backend.txn.TxnUtil.*;
+import static com.mouse.ui.input.Input.*;
 
 
 public class SendScreen {
@@ -45,14 +46,14 @@ public class SendScreen {
                             return;
                         }
                         if (choice == choice.SEND) {
-                            sendTxn(addressAmountFee, wallet, pg, NETWORK, PasswordScreen::get_password_from_gui, terminal::println);
+                            sendTxn(addressAmountFee, wallet, pg, NETWORK, Input::getPassword, terminal::println);
                         } else {
                             long confimations = get_chain_depth_lock_gui();
-                            checkSeqVerifyTxn(addressAmountFee, wallet, pg, confimations, NETWORK, PasswordScreen::get_password_from_gui, terminal::println);
+                            checkSeqVerifyTxn(addressAmountFee, wallet, pg, confimations, NETWORK, Input::getPassword, terminal::println);
                         }
                         break;
                     case SWEEP:
-                        sweepTxn(wallet, pg, NETWORK, PasswordScreen::get_password_from_gui, terminal::println);
+                        sweepTxn(wallet, pg, NETWORK, Input::getPassword, terminal::println);
                         break;
                     case UTXO:
                         break;
@@ -83,49 +84,10 @@ public class SendScreen {
         wallet.parseAddress(address);
 
         long amount = getAmount();
-        final long fee = getFee_from_gui();
+        final long fee = getFee();
 
         return AddressAmountFee.get(address, amount, fee, wallet);
     }
 
-    private static Long getAmount() {
-        return textIO.newLongInputReader()
-                .withMinVal(1L)
-                .withInputTrimming(true)
-                .read("amount (sats):");
-    }
-
-    private static String getAddress() {
-        return textIO.newStringInputReader()
-                .withMinLength(0)
-                .withMaxLength(62)
-                .withInputTrimming(true)
-                .withIgnoreCase()
-                .read("address to:");
-    }
-
-    public static long getFee_from_gui() {
-        long fee = textIO.newLongInputReader()
-                .withDefaultValue(AddressAmountFee.MIN_FEE)
-                .withMinVal(AddressAmountFee.MIN_FEE)
-                .withMaxVal(AddressAmountFee.MAX_FEE)
-                .withInputTrimming(true)
-                .read("fee (sats per vbyte):");
-        return fee;
-    }
-
-    private static long get_chain_depth_lock_gui() {
-
-        long l = textIO.newLongInputReader()
-                .withDefaultValue(1l)
-                .withMinVal(1l)
-                .withMaxVal(1000l)
-                .withInputTrimming(true)
-                .read("chain depth lock:");
-
-        validateConfimationCsvSequenceNumber(l);
-
-        return l;
-    }
 
 }

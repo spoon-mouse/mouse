@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
 
-import static com.mouse.ui.screen.PasswordScreen.get_password_from_gui;
+import static com.mouse.ui.input.Input.getPassword;
 
 public class SecScreen {
     public static final String BAD_WALLET_DECRYPTION = "ERROR INVALID PASSWORD: bad wallet decryption";
@@ -54,7 +54,7 @@ public class SecScreen {
 
         try {
             if(wallet.isEncrypted()){
-                password = get_password_from_gui();
+                password = getPassword();
                 wallet.decrypt(password);
             }
             DeterministicSeed deterministicSeed = wallet.getKeyChainSeed();

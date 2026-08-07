@@ -2,18 +2,9 @@ package com.mouse.ui.screen;
 
 import com.mouse.backend.Kit;
 import org.beryx.textio.*;
-import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
-import org.bitcoinj.core.*;
-import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
-
 import java.io.IOException;
-import java.time.Instant;
-import java.util.Optional;
-
-import static com.mouse.ui.screen.PasswordScreen.get_password_from_gui;
-import static com.mouse.ui.screen.SecScreen.BAD_WALLET_DECRYPTION;
 
 public class WalletScreen {
     public enum Choice { SEND, RECIVE, INFO, SEC, UTIL, BACK, EXIT; }
@@ -37,9 +28,6 @@ public class WalletScreen {
                 case SEND:
                     new SendScreen(walletName).show();
                     break;
-                case RECIVE:
-                    terminal.println(walletName+" receive address: "+wallet.currentReceiveAddress());
-                    break;
                 case INFO:
                     new InfoScreen(walletName).show();
                     break;
@@ -48,6 +36,9 @@ public class WalletScreen {
                     break;
                 case UTIL:
                     new UtilScreen(walletName).show();
+                    break;
+                case RECIVE:
+                    terminal.println(walletName+" receive address: "+wallet.currentReceiveAddress());
                     break;
                 case BACK:
                     return;

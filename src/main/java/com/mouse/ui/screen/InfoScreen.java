@@ -10,6 +10,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.time.Instant;
 
+import static com.mouse.ui.input.Input.getTxId;
 import static com.mouse.ui.table.TxnTable.*;
 
 
@@ -76,7 +77,7 @@ public class InfoScreen {
 
 
     private void view_a_transaction() {
-        String id = get_TxnId_from_gui();
+        String id = getTxId();
 
         if(id==null || id.isEmpty()){
             return;
@@ -98,11 +99,5 @@ public class InfoScreen {
         final Instant instant = Kit.chain().estimateBlockTimeInstant(height);
         terminal.println("chain hight: "+height+" ("+instant+")");
     }
-
-
-    private String get_TxnId_from_gui() {
-        return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
-    }
-
 
 }

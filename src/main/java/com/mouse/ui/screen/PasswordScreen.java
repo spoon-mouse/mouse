@@ -7,6 +7,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 
+import static com.mouse.ui.input.Input.getPassword;
 import static com.mouse.ui.screen.SecScreen.BAD_WALLET_DECRYPTION;
 
 public class PasswordScreen {
@@ -24,13 +25,6 @@ public class PasswordScreen {
     private static String walletName;
     private static TextIO textIO;
     private static TextTerminal terminal;
-
-    public static CharSequence get_password_from_gui() {
-        return textIO.newStringInputReader()
-                                        .withDefaultValue(DEFAULT_PASSWORD)
-                                        .withInputMasking(true)
-                                        .read("password");
-    }
 
     public enum Choice {
         ADD, REMOVE, CHANGE, STATUS, BACK, EXIT
@@ -79,9 +73,9 @@ public class PasswordScreen {
         if (wallet.isEncrypted()) {
             terminal.println(WALLET_IS_ENCRYPTED);
         }else {
-            CharSequence p1 = get_password_from_gui();
+            CharSequence p1 = getPassword();
             terminal.print("repeat ");
-            CharSequence p2 = get_password_from_gui();
+            CharSequence p2 = getPassword();
 
             if(CharSequence.compare(p1, p2)==0){
                 wallet.encrypt(p1);
@@ -98,7 +92,7 @@ public class PasswordScreen {
             terminal.println(WALLET_IS_NOT_ENCRYPTED);
         }else {
             try {
-                wallet.decrypt(get_password_from_gui());
+                wallet.decrypt(getPassword());
                 terminal.println(DECRYPTED_MSG);
             }catch (Wallet.BadWalletEncryptionKeyException e){
                 terminal.println(BAD_WALLET_DECRYPTION);
@@ -110,12 +104,12 @@ public class PasswordScreen {
         if(wallet.isEncrypted()){
             try {
                 terminal.print(OLD_Msg);
-                CharSequence old = get_password_from_gui();
+                CharSequence old = getPassword();
 
                 terminal.print(NEW_MSG);
-                CharSequence p1 = get_password_from_gui();
+                CharSequence p1 = getPassword();
                 terminal.print(REPEAT_NEW_MSG);
-                CharSequence p2 = get_password_from_gui();
+                CharSequence p2 = getPassword();
 
                 if(CharSequence.compare(p1, p2)!=0) {
                     terminal.println(PASSWORDS_DID_NOT_MATCH);
