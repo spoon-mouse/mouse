@@ -1,7 +1,7 @@
 package com.mouse.ui.screen;
 
+import com.mouse.backend.Kit;
 import com.mouse.ui.listener.DownloadTracker;
-import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.ui.table.WalletTable;
 import org.beryx.textio.TextIO;
@@ -9,10 +9,9 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.*;
-import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.net.discovery.DnsDiscovery;
-import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
+import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.*;
 
@@ -21,13 +20,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static com.mouse.backend.util.Config.*;
-import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 
@@ -40,9 +35,6 @@ public class LaunchScreen {
     public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
     public static final int WALLET_CLOSE_TIMEOUT_SECONDS = 60;
 
-    private static WalletAppKit kit=null;
-    private static String walletName=null;
-
     private static final String  DEFAULT_WALLET_NAME = "wallet";
 
     private static TextIO textIO;
@@ -52,21 +44,26 @@ public class LaunchScreen {
         WALLET, RESTORE, DIGEST, EXIT
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws BlockStoreException {
         launch();
     }
 
-    public static void launch() {
-        Runtime.getRuntime().addShutdownHook(new Thread(LaunchScreen::stop_kit));
+    public static void launch() throws BlockStoreException {
+        Kit.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(LaunchScreen::stop));
         show();
     }
+
+    private static void stop() {
+        Kit.stop();
+    }
+
 
     public static void show(){
         textIO = TextIoFactory.getTextIO();
         terminal = textIO.getTextTerminal();
 
         while(true) {
-
             Context context = Context.getOrCreate();
             Context.propagate(context);
 
@@ -84,86 +81,24 @@ public class LaunchScreen {
                 case EXIT:
                     System.exit(0);
             }
-            stop_kit();
         }
-    }
-
-
-    private static void stop_kit() {
-        if(kit!=null){
-            kit.stopAsync();
-            terminal.println("closing: " + walletName);
-            try {
-                kit.awaitTerminated(WALLET_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                terminal.println("closed: " + walletName);
-            }catch(TimeoutException e) {
-                terminal.println("time out closing wallet: "+walletName+" after "+WALLET_CLOSE_TIMEOUT_SECONDS+" seconds");
-            }catch (IllegalStateException e){
-                terminal.println("ERROR closing wallet: "+walletName+" "+e.getMessage());
-                System.out.println(e);
-            }finally {
-                kit=null;
-            }
-        }
-    }
-
-
-    public static String get_wallet_name_from_gui() {
-        return textIO.newStringInputReader().withDefaultValue(DEFAULT_WALLET_NAME).withInputTrimming(true)
-                .read("wallet name");
     }
 
 
     private static void load_wallet() {
         terminal.print("wallets: "+ wallet_names_string());
         terminal.println();
-        walletName = get_wallet_name_from_gui();
+        String walletName = get_wallet_name_from_gui();
         try{
-
-
-            kit = new WalletAppKit(NETWORK_PARAMETERS, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32, walletDir, walletName) {
-
-                private  CsvScriptExtension csv = new CsvScriptExtension();
-                @Override
-                protected List<WalletExtension> provideWalletExtensions() {
-                    System.out.println("provideWalletExtensions : "+csv);
-                    return List.of(csv);
-                }
-
-                @Override
-                protected void onSetupCompleted() {
-
-                    List<Script> watchedScripts = csv.getRedeemScripts().stream().map( redeemScript ->
-                                 Script.parse(createP2WSHOutputScript(redeemScript).program(), redeemScript.creationTime().get() ))
-                            .collect(toList());
-
-                    wallet().addWatchedScripts(watchedScripts);
-                    wallet().addTransactionSigner(new CsvP2WshSigner(csv.getRedeemScripts()));
-                    System.out.println("onSetupCompleted : done");
-                }
-            };
-            kit.setBlockingStartup(false);
-            kit.startAsync();
-            kit.awaitRunning();
-
-            WalletScreen.show(walletName, kit);
+            Kit.loadOrCreateWallet(walletName);
+            WalletScreen screen = new WalletScreen(walletName);
+            screen.show();
         }catch(Exception e){
             System.out.println(e);
             e.printStackTrace();
             terminal.println(e.getMessage());
         }
     }
-
-
-    public static String wallet_names_string() {
-        try {
-            return Files.list(WALLET_DIR_PATH).filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
-                    .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
-                    .sorted().collect(Collectors.joining(" "));
-        } catch (IOException e) {}
-        return "";
-    }
-
 
     private static void restore_from_seed() {
 
@@ -209,6 +144,11 @@ public class LaunchScreen {
         }
     }
 
+    private static void digest_of_wallets() {
+        terminal.println( WalletTable.get_wallet_digest_table() );
+    }
+
+
     private static long get_optinal_creation_epoch_seconds(){
         return textIO.newLongInputReader().withMinVal(0l).withDefaultValue(0l).read("creation epoch seconds (optionally speeds up restoration):");
     }
@@ -217,8 +157,18 @@ public class LaunchScreen {
         return textIO.newStringInputReader().withInputTrimming(true).withPattern(REGEX_12_WORDS).read("12 word seed phrase:");
     }
 
+    public static String get_wallet_name_from_gui() {
+        return textIO.newStringInputReader().withDefaultValue(DEFAULT_WALLET_NAME).withInputTrimming(true)
+                .read("wallet name");
+    }
 
-    private static void digest_of_wallets() {
-        terminal.println( WalletTable.get_wallet_digest_table() );
+
+    public static String wallet_names_string() {
+        try {
+            return Files.list(WALLET_DIR_PATH).filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
+                    .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
+                    .sorted().collect(Collectors.joining(" "));
+        } catch (IOException e) {}
+        return "";
     }
 }

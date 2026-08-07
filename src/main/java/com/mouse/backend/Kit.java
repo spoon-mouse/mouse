@@ -3,6 +3,7 @@ package com.mouse.backend;
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.core.BlockChain;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
@@ -25,26 +26,26 @@ import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 /**
- * Replaces WalletAppKit. Owns exactly ONE BlockStore/BlockChain/PeerGroup for the
+ * Replaces WalletAppKit. Owns exactly ONE BlockStore/Kit/PeerGroup for the
  * whole application's lifetime, and hosts multiple wallets on top of that single
  * shared setup — rather than WalletAppKit's one-kit-per-wallet model.
  *
  * This class is backend-only: no TextIO/terminal calls, no UI concerns. UI screens
- * depend on this class + plain Wallet objects, never on PeerGroup/BlockChain/BlockStore
+ * depend on this class + plain Wallet objects, never on PeerGroup/Kit/BlockStore
  * directly.
  */
-public class BlockChain {
+public class Kit {
 
     public static final int WAIT_MIN_NUM_PEERS = 3;
-    private static BlockChain instance;
+    private static Kit instance;
 
-    private final BlockStore blockStore;
-    private final org.bitcoinj.core.BlockChain chain;
-    private final PeerGroup peerGroup;
+    private static BlockStore blockStore;
+    private static org.bitcoinj.core.BlockChain chain;
+    private static PeerGroup peerGroup;
 
-    private final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
+    private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
 
-    private BlockChain(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
+    private Kit(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
         this.blockStore = blockStore;
         this.chain = chain;
         this.peerGroup = peerGroup;
@@ -60,9 +61,9 @@ public class BlockChain {
      *                         listener, or DownloadProgressTracker's own no-op
      *                         default if you don't care.
      */
-    public static synchronized BlockChain start(DownloadProgressTracker progressListener) throws BlockStoreException {
+    public static synchronized void start() throws BlockStoreException {
         if (instance != null) {
-            return instance;
+            return;
         }
 
         BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
@@ -79,30 +80,19 @@ public class BlockChain {
             Thread.currentThread().interrupt();
         }
 
-        peerGroup.startBlockChainDownload(progressListener);
-        try {
-            progressListener.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        peerGroup.startBlockChainDownload(new DownloadProgressTracker());
 
-        instance = new BlockChain(blockStore, chain, peerGroup);
-        return instance;
+        instance = new Kit(blockStore, chain, peerGroup);
     }
 
-    public static BlockChain get() {
-        if (instance == null) {
-            throw new IllegalStateException("BlockChain.start(...) has not been called yet");
-        }
-        return instance;
-    }
+
 
     /**
      * Loads an existing wallet file, or creates a fresh wallet if none exists yet,
      * attaches the CSV extension/watched-scripts/signer, and hooks it onto the
      * shared chain + peer group. Returns the ready-to-use Wallet.
      */
-    public synchronized Wallet loadOrCreateWallet(String walletName) throws Exception {
+    public static synchronized Wallet loadOrCreateWallet(String walletName) throws Exception {
         if (wallets.containsKey(walletName)) {
             return wallets.get(walletName);
         }
@@ -128,11 +118,9 @@ public class BlockChain {
         return wallet;
     }
 
-    private void attachCsvSupport(Wallet wallet, CsvScriptExtension csv) {
+    private static void attachCsvSupport(Wallet wallet, CsvScriptExtension csv) {
         List<Script> watchedScripts = csv.getRedeemScripts().stream()
-                .map(redeemScript -> Script.parse(
-                        createP2WSHOutputScript(redeemScript).program(),
-                        redeemScript.creationTime().get()))
+                .map(redeemScript -> Script.parse(createP2WSHOutputScript(redeemScript).program(), redeemScript.creationTime().get()))
                 .collect(toList());
 
         wallet.addWatchedScripts(watchedScripts);
@@ -154,15 +142,15 @@ public class BlockChain {
         wallet.saveToFile(walletFile);
     }
 
-    public PeerGroup peerGroup() {
+    public static PeerGroup peerGroup() {
         return peerGroup;
     }
 
-    public org.bitcoinj.core.BlockChain chain() {
+    public static BlockChain chain() {
         return chain;
     }
 
-    public Wallet wallet(String walletName) {
+    public static Wallet wallet(String walletName) {
         Wallet wallet = wallets.get(walletName);
         if (wallet == null) {
             throw new IllegalStateException("Wallet not loaded: " + walletName);
@@ -174,7 +162,7 @@ public class BlockChain {
      * Stops the shared node entirely — call once, at application shutdown.
      * Saves every currently loaded wallet first.
      */
-    public synchronized void stop() {
+    public static synchronized void stop() {
         for (Map.Entry<String, Wallet> entry : wallets.entrySet()) {
             try {
                 entry.getValue().saveToFile(new File(walletDirStr, entry.getKey() + WALLET_FILE_POST_FIX));
@@ -190,4 +178,9 @@ public class BlockChain {
         }
         instance = null;
     }
+
+    public static int connections(){
+        return peerGroup.numConnectedPeers();
+    }
+
 }

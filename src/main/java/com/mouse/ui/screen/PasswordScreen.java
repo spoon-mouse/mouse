@@ -7,8 +7,7 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 
-import static com.mouse.ui.screen.WalletScreen.BAD_WALLET_DECRYPTION;
-
+import static com.mouse.ui.screen.SecScreen.BAD_WALLET_DECRYPTION;
 
 public class PasswordScreen {
     public static final String  DEFAULT_PASSWORD = "wallet.password";
