@@ -45,7 +45,7 @@ public class LaunchScreen {
                     restore();
                     break;
                 case DIGEST:
-                    digest_of_wallets();
+                    digest();
                     break;
                 case EXIT:
                     System.exit(0);
@@ -79,7 +79,7 @@ public class LaunchScreen {
     }
 
 
-    private static void digest_of_wallets() {
+    private static void digest() {
         AsciiTable table = getTable("name", "encrypted", "balance", "block hight", "id", "receive address");
         Kit.getMetaWallets().forEach( w -> {
             table.addRow(w.name(), w.isEncrypted(), w.balance(), w.blockHeight(), w.id(), w.reciveAddress());
