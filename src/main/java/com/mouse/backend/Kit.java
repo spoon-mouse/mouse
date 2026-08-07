@@ -184,19 +184,34 @@ public class Kit {
 
     public static void restore_from_seed(String walletName, String seed_txt, long epochSeconds) {
 
-        DownloadTracker listener = new DownloadTracker();
-        try {
-            DeterministicSeed seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+        DeterministicSeed seed;
+        if(epochSeconds<=0L){
+            seed = DeterministicSeed.ofMnemonic(seed_txt, "");
+        }else{
+            seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+        }
 
+        try {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletDirStr+"/"+walletName+SPVCHAIN_FILE_POST_FIX));
+
+            BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
+            PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+            peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
+
+            DownloadTracker listener = new DownloadTracker();
+            peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
             listener.await();
 
             wallet.addExtension(new CsvScriptExtension());
             wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
+
+            peerGroup.stop();
+            blockStore.close();
 
         } catch (Exception e) {
             e.printStackTrace();
