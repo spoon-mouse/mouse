@@ -2,6 +2,8 @@ package com.mouse.backend;
 
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.backend.util.Config;
+import com.mouse.backend.util.MetaWallet;
 import com.mouse.ui.listener.DownloadTracker;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.BlockChain;
@@ -14,15 +16,17 @@ import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
+import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 
 import static com.mouse.backend.util.Config.*;
 import static java.util.stream.Collectors.toList;
@@ -70,14 +74,32 @@ public class Kit {
         PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
         peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
 
-        peerGroup.start();
 
+        //load and add all the wallets at start up so they are all ready to go ?
         try {
-            peerGroup.waitForPeers(WAIT_MIN_NUM_PEERS).get();
-        } catch (InterruptedException | ExecutionException e) {
-            Thread.currentThread().interrupt();
-        }
+            Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
+                try {
+                    File file = path.toFile();
+                    final Wallet wallet = Wallet.loadFromFile(file, new CsvScriptExtension());
+                    chain.addWallet(wallet);
+                    peerGroup.addWallet(wallet);
 
+                    String fileName = file.getName();
+                    String walletName = fileName.substring(0, fileName.length() - WALLET_FILE_POST_FIX.length());
+
+                    wallets.put(walletName, wallet);
+
+                } catch (UnreadableWalletException e) {
+                    e.printStackTrace();
+                }
+            });
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        //Load and add all the wallets at start up
+
+
+        peerGroup.start();
         peerGroup.startBlockChainDownload(new DownloadProgressTracker());
 
         instance = new Kit(blockStore, chain, peerGroup);
@@ -234,4 +256,14 @@ public class Kit {
     public static void save() {
         wallets.keySet().stream().forEach( k -> {save(k);});
     }
+
+
+    public static Set<String> getWalletNames() {
+        return wallets.keySet();
+    }
+
+    public static List<MetaWallet> getMetaWallets(){
+        return wallets.entrySet().stream().map( e -> MetaWallet.get(e.getKey(), e.getValue()) ).toList();
+    }
+
 }

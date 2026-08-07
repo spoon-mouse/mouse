@@ -1,20 +1,17 @@
 package com.mouse.ui.screen;
 
 import com.mouse.backend.Kit;
-import com.mouse.ui.table.WalletTable;
+import de.vandermeer.asciitable.AsciiTable;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.core.*;
 import org.bitcoinj.store.BlockStoreException;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.stream.Collectors;
 
-import static com.mouse.backend.util.Config.*;
 import static com.mouse.ui.input.Input.*;
+import static com.mouse.ui.table.TxnTable.getTable;
 
 
 public class LaunchScreen {
@@ -67,7 +64,7 @@ public class LaunchScreen {
 
 
     private static void load_wallet() {
-        terminal.print("wallets: "+ wallet_names_string());
+        terminal.print( "wallets: "+ Kit.getWalletNames().stream().sorted().collect(Collectors.joining(" ")) );
         terminal.println();
         String walletName = getWalletName();
         try{
@@ -83,16 +80,13 @@ public class LaunchScreen {
 
 
     private static void digest_of_wallets() {
-        terminal.println( WalletTable.get_wallet_digest_table() );
+        AsciiTable table = getTable("name", "encrypted", "balance", "block hight", "id", "receive address");
+        Kit.getMetaWallets().forEach( w -> {
+            table.addRow(w.name(), w.isEncrypted(), w.balance(), w.blockHeight(), w.id(), w.reciveAddress());
+        });
+        table.addRule();
+        terminal.println(table.render());
     }
 
 
-    public static String wallet_names_string() {
-        try {
-            return Files.list(WALLET_DIR_PATH).filter(f -> f.toString().endsWith(WALLET_FILE_POST_FIX)).map(Path::getFileName)
-                    .map(Path::toString).map(s-> s.substring(0, s.length() - WALLET_FILE_POST_FIX.length()))
-                    .sorted().collect(Collectors.joining(" "));
-        } catch (IOException e) {}
-        return "";
-    }
 }
