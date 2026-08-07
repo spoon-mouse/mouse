@@ -74,35 +74,25 @@ public class Kit {
         PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
         peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
 
+        instance = new Kit(blockStore, chain, peerGroup);
 
-        //load and add all the wallets at start up so they are all ready to go ?
         try {
             Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
+                File file = path.toFile();
+                String fileName = file.getName();
+                String walletName = fileName.substring(0, fileName.length() - WALLET_FILE_POST_FIX.length());
                 try {
-                    File file = path.toFile();
-                    final Wallet wallet = Wallet.loadFromFile(file, new CsvScriptExtension());
-                    chain.addWallet(wallet);
-                    peerGroup.addWallet(wallet);
-
-                    String fileName = file.getName();
-                    String walletName = fileName.substring(0, fileName.length() - WALLET_FILE_POST_FIX.length());
-
-                    wallets.put(walletName, wallet);
-
-                } catch (UnreadableWalletException e) {
+                    loadOrCreateWallet(walletName);
+                } catch (UnreadableWalletException | IOException e) {
                     e.printStackTrace();
                 }
             });
         }catch (IOException e) {
             e.printStackTrace();
         }
-        //Load and add all the wallets at start up
-
 
         peerGroup.start();
         peerGroup.startBlockChainDownload(new DownloadProgressTracker());
-
-        instance = new Kit(blockStore, chain, peerGroup);
     }
 
 
@@ -112,7 +102,7 @@ public class Kit {
      * attaches the CSV extension/watched-scripts/signer, and hooks it onto the
      * shared chain + peer group. Returns the ready-to-use Wallet.
      */
-    public static synchronized Wallet loadOrCreateWallet(String walletName) throws Exception {
+    public static synchronized Wallet loadOrCreateWallet(String walletName) throws UnreadableWalletException, IOException {
         if (wallets.containsKey(walletName)) {
             return wallets.get(walletName);
         }
