@@ -24,7 +24,7 @@ public class UtilScreen {
 
     public void show() throws IOException {
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Security");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Utils");
             switch (choice) {
                 case CAST:
                     terminal.println("broadcastTransactions:");

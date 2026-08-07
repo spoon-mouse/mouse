@@ -37,7 +37,7 @@ public class PasswordScreen {
         terminal = textIO.getTextTerminal();
 
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("password options wallet("+walletName+")");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" password");
             switch (choice) {
                 case ADD:
                     add();

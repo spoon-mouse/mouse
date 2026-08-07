@@ -36,7 +36,7 @@ public class SendScreen {
 
     public void show() {
         while(true) {
-            Choice choice = textIO.newEnumInputReader(Choice.class).read("Transactions");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+" Transactions");
             try {
                 switch (choice) {
                     case SEND:

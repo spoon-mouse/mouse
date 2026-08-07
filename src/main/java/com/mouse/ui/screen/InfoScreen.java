@@ -34,7 +34,7 @@ public class InfoScreen {
 
         while(true) {
 
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Info: ");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Info");
             switch (choice) {
                 case SIMPLE:
                     terminal.println( simple_transation_table(wallet.getTransactionsByTime(), wallet) );
