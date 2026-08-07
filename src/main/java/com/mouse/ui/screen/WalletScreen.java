@@ -16,7 +16,7 @@ import static com.mouse.ui.screen.PasswordScreen.get_password_from_gui;
 import static com.mouse.ui.screen.SecScreen.BAD_WALLET_DECRYPTION;
 
 public class WalletScreen {
-    public enum Choice { SEND, RECIVE, HIST, INFO, SEC, CAST, BACK, EXIT; }
+    public enum Choice { SEND, RECIVE, INFO, SEC, UTIL, BACK, EXIT; }
 
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
@@ -40,18 +40,14 @@ public class WalletScreen {
                 case RECIVE:
                     terminal.println(walletName+" receive address: "+wallet.currentReceiveAddress());
                     break;
-                case HIST:
-                    HistoryScreen.show(walletName, wallet);
-                    break;
                 case INFO:
-                    show_wallet_info();
+                    new InfoScreen(walletName).show();
                     break;
                 case SEC:
                     new SecScreen(walletName).show();
                     break;
-                case CAST:
-                    terminal.println("casting:");
-                    wallet.getPendingTransactions().stream().forEach(tx->{Kit.peerGroup().broadcastTransaction(tx, 3, false);});
+                case UTIL:
+                    new UtilScreen(walletName).show();
                     break;
                 case BACK:
                     return;
@@ -59,19 +55,6 @@ public class WalletScreen {
                     System.exit(0);
             }
         }
-    }
-
-    private void show_wallet_info() {
-        terminal.println(wallet.toString());
-
-        final PeerGroup peerGroup = Kit.peerGroup();
-        terminal.println("connected peers: "+peerGroup.numConnectedPeers());
-        terminal.println("max connections: "+peerGroup.getMaxConnections());
-        terminal.println("min connections for broadcast: "+peerGroup.getMinBroadcastConnections());
-
-        final int height = Kit.chain().getBestChainHeight();
-        final Instant instant = Kit.chain().estimateBlockTimeInstant(height);
-        terminal.println("chain hight: "+height+" ("+instant+")");
     }
 
 }
