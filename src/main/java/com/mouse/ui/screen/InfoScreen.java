@@ -1,33 +1,39 @@
 package com.mouse.ui.screen;
 
+import com.mouse.backend.Kit;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
-import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.wallet.Wallet;
 
-import java.util.ArrayList;
-import java.util.List;
+
+import java.time.Instant;
 
 import static com.mouse.ui.table.TxnTable.*;
 
 
-public class HistoryScreen {
-
-    private static TextIO textIO;
-    private static TextTerminal terminal;
+public class InfoScreen {
+    private static TextIO textIO = TextIoFactory.getTextIO();
+    private static TextTerminal terminal = textIO.getTextTerminal();
 
     public enum Choice {
-        SIMPLE, EXPANDED, PENDING, SENT, RECIVED, MOVED, UTXO, SENT_TO, VIEW, BACK, EXIT
+        SIMPLE, EXPANDED, PENDING, SENT, RECEIVED, MOVED, UTXO, ADDRES, TXN, WAL, BACK, EXIT
     }
 
-    public static void show(String walletName, Wallet wallet){
-        textIO = TextIoFactory.getTextIO();
-        terminal = textIO.getTextTerminal();
+    private String walletName;
+    private Wallet wallet;
+
+    public InfoScreen(String name){
+        walletName=name;
+        wallet= Kit.wallet(walletName);
+    }
+
+    public void show(){
 
         while(true) {
 
-            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Transactions: ");
+            Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Info: ");
             switch (choice) {
                 case SIMPLE:
                     terminal.println( simple_transation_table(wallet.getTransactionsByTime(), wallet) );
@@ -36,12 +42,12 @@ public class HistoryScreen {
                     terminal.println( expanded_transation_table(wallet.getTransactionsByTime(), wallet) );
                     break;
                 case PENDING:
-                    show_pending(wallet);
+                    terminal.println(expanded_transation_table(wallet.getPendingTransactions().stream().toList(), wallet) );
                     break;
                 case SENT:
                     terminal.println( sent_table(wallet.getTransactionsByTime(), wallet) );
                     break;
-                case RECIVED:
+                case RECEIVED:
                     terminal.println( recived_table(wallet.getTransactionsByTime(), wallet) );
                     break;
                 case MOVED:
@@ -50,11 +56,14 @@ public class HistoryScreen {
                 case UTXO:
                     terminal.println( utxo_table(wallet) );
                     break;
-                case SENT_TO:
+                case ADDRES:
                     terminal.println( send_addresses_table(wallet) );
                     break;
-                case VIEW:
-                    view_a_transaction(wallet);
+                case TXN:
+                    view_a_transaction();
+                    break;
+                case WAL:
+                    show_wallet_info();
                     break;
                 case BACK:
                     return;
@@ -65,13 +74,8 @@ public class HistoryScreen {
 
     }
 
-    private static void show_pending(Wallet wallet) {
-        List<Transaction> pending = new ArrayList<>(wallet.getPendingTransactions());
-        terminal.println(expanded_transation_table(pending, wallet));
-    }
 
-
-    private static void view_a_transaction(Wallet wallet) {
+    private void view_a_transaction() {
         String id = get_TxnId_from_gui();
 
         if(id==null || id.isEmpty()){
@@ -82,8 +86,23 @@ public class HistoryScreen {
         terminal.println( details );
     }
 
-    private static String get_TxnId_from_gui() {
+    private void show_wallet_info() {
+        terminal.println(wallet.toString());
+
+        final PeerGroup peerGroup = Kit.peerGroup();
+        terminal.println("connected peers: "+peerGroup.numConnectedPeers());
+        terminal.println("max connections: "+peerGroup.getMaxConnections());
+        terminal.println("min connections for broadcast: "+peerGroup.getMinBroadcastConnections());
+
+        final int height = Kit.chain().getBestChainHeight();
+        final Instant instant = Kit.chain().estimateBlockTimeInstant(height);
+        terminal.println("chain hight: "+height+" ("+instant+")");
+    }
+
+
+    private String get_TxnId_from_gui() {
         return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
     }
+
 
 }
