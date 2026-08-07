@@ -106,7 +106,7 @@ public class Kit {
             wallet.addExtension(csv);
             wallet.saveToFile(walletFile);
         }
-
+        wallet.setAcceptRiskyTransactions(true);
         attachCsvSupport(wallet, csv);
 
         chain.addWallet(wallet);

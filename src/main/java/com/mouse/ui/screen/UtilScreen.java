@@ -4,12 +4,13 @@ import com.mouse.backend.Kit;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
+import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 
 public class UtilScreen {
-    public enum Choice { CAST, BACK, EXIT; }
+    public enum Choice { CAST, DOWN, BACK, EXIT; }
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
 
@@ -26,8 +27,12 @@ public class UtilScreen {
             Choice choice = textIO.newEnumInputReader(Choice.class).read(walletName+ " Security");
             switch (choice) {
                 case CAST:
-                    terminal.println("casting:");
+                    terminal.println("broadcastTransactions:");
                     wallet.getPendingTransactions().stream().forEach(tx->{Kit.peerGroup().broadcastTransaction(tx, 3, false);});
+                    break;
+                case DOWN:
+                    terminal.println("startBlockChainDownload:");
+                    Kit.peerGroup().startBlockChainDownload(new DownloadProgressTracker());
                     break;
                 case BACK:
                     return;
