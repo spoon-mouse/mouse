@@ -9,6 +9,7 @@ import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.ECKey;
 import org.bitcoinj.crypto.TransactionSignature;
@@ -30,6 +31,8 @@ import java.util.concurrent.TimeoutException;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
+import static com.mouse.backend.util.Config.NETWORK;
+import static com.mouse.ui.input.Input.getTxId;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 /**
@@ -41,27 +44,25 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 public class TxnUtil {
 
     // network is passed in explicitly now rather than pulled from a UI-layer constant
-    public static void sweepTxn(Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network,
-                                PasswordPrompt passwordPrompt, BroadcastProgressListener progress)
-            throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public static void sweepTxn(Wallet wallet, PeerGroup peerGroup, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
         //Transaction txn = selectTxnInputs( addressAmountFee, sendRequest, wallet, network);
         //Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
         //netBroadcast(tx, wallet, peerGroup, progress);
     }
 
-    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, org.bitcoinj.base.BitcoinNetwork network, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
-        Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet, network);
+        Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet);
         Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
         netBroadcast(tx, wallet, peerGroup, progress);
     }
 
-    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations, org.bitcoinj.base.BitcoinNetwork network, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -86,7 +87,7 @@ public class TxnUtil {
         tx.addOutput(amount, p2wshOutputScript);
 
         SendRequest sendRequest = SendRequest.forTx(tx);
-        tx = selectTxnInputs(addressAmountFee, sendRequest, wallet, network);
+        tx = selectTxnInputs(addressAmountFee, sendRequest, wallet);
         tx = deEncryptWalletAndSignTx(tx, wallet, passwordPrompt);
 
         if(wallet.isAddressMine(toAddress)){
@@ -160,31 +161,43 @@ public class TxnUtil {
         return txn;
     }
 
-    private static Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest, Wallet wallet, org.bitcoinj.base.BitcoinNetwork network) {
+    private static Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest, Wallet wallet ) {
 
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(network), ext.getRedeemScripts());
+        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
         Coin fee = Coin.ofSat( addressAmountFee.fee() );
-        Coin target = amount.add( fee );
-        CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
 
         Coin gathered = Coin.ZERO;
-        for (TransactionOutput output : selection.gathered) {
-            sendRequest.tx.addInput(output);
-            gathered = gathered.add(output.getValue());
+        if(true) {
+            //PICK 1 UTXO BY HAND
+            String id = getTxId();
+            Sha256Hash hash = Sha256Hash.wrap(id);
+
+            for (TransactionOutput utxo : wallet.getUnspents()) {
+                if (utxo.getParentTransactionHash().equals( hash )) {
+                    sendRequest.tx.addInput(utxo);
+                    gathered = gathered.add(utxo.getValue());
+                    break;
+                }
+            }
+        }else{
+            Coin target = amount.add( fee );
+            CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
+            for (TransactionOutput output : selection.gathered) {
+                sendRequest.tx.addInput(output);
+                gathered = gathered.add(output.getValue());
+            }
         }
 
         Coin change = gathered.subtract(amount).subtract(fee);
-
         if (change.isPositive()) {
             sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
         }
 
         sendRequest.tx.setVersion(2);
-
         return sendRequest.tx;
     }
 

@@ -42,18 +42,18 @@ public class SendScreen {
                     case SEND:
                         AddressAmountFee aaf = AddressAmountFee.get();
                         if(aaf!=null){
-                            sendTxn(aaf, wallet, pg, NETWORK, Input::getPassword, terminal::println);
+                            sendTxn(aaf, wallet, pg, Input::getPassword, terminal::println);
                         }
                         break;
                     case CSV:
                         aaf = AddressAmountFee.get();
                         if(aaf!=null) {
                             long conf = getConfirmation();
-                            checkSeqVerifyTxn(aaf, wallet, pg, conf, NETWORK, Input::getPassword, terminal::println);
+                            checkSeqVerifyTxn(aaf, wallet, pg, conf, Input::getPassword, terminal::println);
                         }
                         break;
                     case SWEEP:
-                        sweepTxn(wallet, pg, NETWORK, Input::getPassword, terminal::println);
+                        sweepTxn(wallet, pg, Input::getPassword, terminal::println);
                         break;
                     case UTXO:
                         break;
