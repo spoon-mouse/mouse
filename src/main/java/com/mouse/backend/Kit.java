@@ -207,8 +207,7 @@ public class Kit {
             peerGroup.startBlockChainDownload(listener);
             listener.await();
 
-            wallet.addExtension(new CsvScriptExtension());
-            wallet.saveToFile(new File(walletName+ WALLET_FILE_POST_FIX) );
+            save(walletName);
 
             peerGroup.stop();
             blockStore.close();
@@ -223,4 +222,17 @@ public class Kit {
         return peerGroup.numConnectedPeers();
     }
 
+    public static void save(String walletName) {
+        try {
+            File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
+            wallets.get(walletName).saveToFile(walletFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void save() {
+        wallets.keySet().stream().forEach( k -> {save(k);});
+    }
 }

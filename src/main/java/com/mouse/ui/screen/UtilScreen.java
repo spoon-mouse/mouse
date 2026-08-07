@@ -10,7 +10,7 @@ import org.bitcoinj.wallet.Wallet;
 import java.io.IOException;
 
 public class UtilScreen {
-    public enum Choice { CAST, DOWN, BACK, EXIT; }
+    public enum Choice { CAST, DOWN, SAVE, BACK, EXIT; }
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
 
@@ -33,6 +33,9 @@ public class UtilScreen {
                 case DOWN:
                     terminal.println("startBlockChainDownload:");
                     Kit.peerGroup().startBlockChainDownload(new DownloadProgressTracker());
+                    break;
+                case SAVE:
+                    Kit.save();
                     break;
                 case BACK:
                     return;
