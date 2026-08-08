@@ -59,6 +59,11 @@ public class Input {
         return l;
     }
 
+    public static String getUtxoId(String... msg) {
+        for (String m : msg) {terminal.println(""+m);}
+        return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("UTXO id:");
+    }
+
     public static String getTxId(String... msg) {
         for (String m : msg) {terminal.println(""+m);}
         return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id:");

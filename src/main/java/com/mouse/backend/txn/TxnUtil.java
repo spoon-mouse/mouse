@@ -201,9 +201,11 @@ public class TxnUtil {
 
         selection.outputs().stream().forEach(o -> sendRequest.tx.addInput(o));
 
-        Coin change = selection.totalValue().subtract(amount).subtract(fee);
-        if (change.isPositive()) {
-            sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
+        if(!amount.isZero()){
+            Coin change = selection.totalValue().subtract(amount).subtract(fee);
+            if (change.isPositive()) {
+                sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
+            }
         }
 
         sendRequest.tx.setVersion(2);

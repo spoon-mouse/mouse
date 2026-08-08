@@ -38,7 +38,7 @@ public class TxnTable {
     }
 
     public static String utxo_table(Wallet wallet) {
-        AsciiTable table = getTable( "locked", "lockValue", "value", "blockDepth", "parent txn id", "outputIdx", "dust", "address");
+        AsciiTable table = getTable( "locked", "lockValue", "value", "blockDepth", "utxo id", "outputIdx", "dust", "address");
 
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         System.out.println(ext);
@@ -53,7 +53,7 @@ public class TxnTable {
                          scvUtil.getRelativeLock(utxo),
                          utxo.getValue().value,
                          utxo.getParentTransactionDepthInBlocks(),
-                         utxo.getParentTransactionHash(),
+                         utxo.getParentTransactionHash()+":"+utxo.getIndex(),
                          utxo.getIndex(),
                          utxo.isDust(),
                          utxo.getScriptPubKey().getToAddress(NETWORK));

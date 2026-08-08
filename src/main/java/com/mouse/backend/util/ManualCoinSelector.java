@@ -13,6 +13,7 @@ import java.util.List;
 
 import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
 import static com.mouse.ui.input.Input.getTxId;
+import static com.mouse.ui.input.Input.getUtxoId;
 
 public class ManualCoinSelector implements CoinSelector {
 
@@ -22,11 +23,13 @@ public class ManualCoinSelector implements CoinSelector {
 
         while(true){
 
-            String id = getTxId("select UTXO by id");
-            if(id==null || id.isEmpty()){break;}
+            String utxlUrl = getUtxoId("select UTXO by parent txn id : output idx");
+            if(utxlUrl==null || utxlUrl.isEmpty()){break;}
 
-            Sha256Hash hash = Sha256Hash.wrap(id);
-            final TransactionOutput select = candidates.stream().filter(utxo -> utxo.getParentTransactionHash().equals(hash)).findFirst().get();
+            UtxoId id = UtxoId.get(utxlUrl);
+
+            final TransactionOutput select = candidates.stream().filter(
+                    utxo -> utxo.getParentTransactionHash().equals(id.txIdHash()) && utxo.getIndex()==id.outputIdx()).findFirst().get();
 
             selected.add(select);
 
