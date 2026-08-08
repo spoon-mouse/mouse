@@ -281,11 +281,11 @@ public class Kit {
     public static void viewRedeemScripts(String walletName, InfoHook react) {
         final Wallet wallet = wallets.get(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        ext.getRedeemScripts().forEach(s->react.event(s.toString()));
+        ext.getRedeemScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
     public static void viewWatchedScripts(String walletName, InfoHook react) {
         final Wallet wallet = wallets.get(walletName);
-        wallet.getWatchedScripts().forEach(s->react.event(s.toString()));
+        wallet.getWatchedScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 }

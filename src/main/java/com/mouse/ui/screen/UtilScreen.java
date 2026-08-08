@@ -44,11 +44,11 @@ public class UtilScreen {
                     Kit.addRedeemScript(walletName, getReddemScriptKV());
                     break;
                 case VIEW_REDEEM_SCRIPTS:
-                    terminal.println(walletName+"view redeem scripts:");
+                    terminal.println(walletName+" view redeem scripts:");
                     Kit.viewRedeemScripts(walletName, terminal::println);
                     break;
                 case VIEW_WATCHED_SCRIPTS:
-                    terminal.println(walletName+"view watched scripts:");
+                    terminal.println(walletName+" view watched scripts:");
                     Kit.viewWatchedScripts(walletName, terminal::println);
                     break;
                 case BACK:
