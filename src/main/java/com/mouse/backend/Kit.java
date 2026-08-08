@@ -269,5 +269,7 @@ public class Kit {
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         final Script script = ext.addRedeemScript(kvStringProgHexCreationTime);
         wallet.addWatchedScripts(Collections.singletonList(script));
+
+        log.info("add watched script: "+script);
     }
 }
