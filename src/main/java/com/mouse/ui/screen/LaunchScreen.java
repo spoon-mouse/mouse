@@ -69,8 +69,7 @@ public class LaunchScreen {
         String walletName = getWalletName();
         try{
             Kit.loadOrCreateWallet(walletName);
-            WalletScreen screen = new WalletScreen(walletName);
-            screen.show();
+            new WalletScreen(walletName).show();
         }catch(Exception e){
             System.out.println(e);
             e.printStackTrace();

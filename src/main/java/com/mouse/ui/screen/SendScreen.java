@@ -1,9 +1,8 @@
 package com.mouse.ui.screen;
 
-import static com.mouse.backend.util.Config.NETWORK;
-
 import com.mouse.backend.Kit;
 import com.mouse.backend.txn.TxnUtil;
+import com.mouse.backend.util.CoinSelectOption;
 import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.ui.input.Input;
 import org.beryx.textio.TextIO;
@@ -14,14 +13,13 @@ import org.bitcoinj.core.*;
 import org.bitcoinj.wallet.Wallet;
 
 import java.util.concurrent.ExecutionException;
-
-import static com.mouse.backend.txn.TxnUtil.*;
 import static com.mouse.ui.input.Input.*;
 
 
 public class SendScreen {
 
-    public enum Choice {SEND, CSV, SWEEP, UTXO, BACK, EXIT;}
+    public enum Choice {SEND, CSV, SWEEP, SELECTOR, BACK, EXIT;}
+
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
 
@@ -59,7 +57,10 @@ public class SendScreen {
                     case SWEEP:
                         txn.sweepTxn(Input::getPassword, terminal::println);
                         break;
-                    case UTXO:
+                    case SELECTOR:
+                        CoinSelectOption option = textIO.newEnumInputReader(CoinSelectOption.class).read("Coin Selector:");
+                        txn.setCoinSelector(option);
+                        terminal.println("set coin selection by "+option);
                         break;
                     case BACK:
                         return;

@@ -1,6 +1,8 @@
 package com.mouse.backend.txn;
 
 import com.mouse.backend.Kit;
+import com.mouse.backend.util.CoinSelectOption;
+import com.mouse.backend.util.ManualCoinSelector;
 import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.backend.hook.BroadcastProgressListener;
 import com.mouse.backend.hook.PasswordPrompt;
@@ -10,7 +12,6 @@ import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
-import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.ECKey;
 import org.bitcoinj.crypto.TransactionSignature;
@@ -18,10 +19,7 @@ import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.signers.TransactionSigner;
-import org.bitcoinj.wallet.CoinSelection;
-import org.bitcoinj.wallet.DefaultCoinSelector;
-import org.bitcoinj.wallet.SendRequest;
-import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.wallet.*;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -32,8 +30,9 @@ import java.util.concurrent.TimeoutException;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
+import static com.mouse.backend.util.CoinSelectOption.Selector.DEFAULT;
+import static com.mouse.backend.util.CoinSelectOption.Selector.HAND;
 import static com.mouse.backend.util.Config.NETWORK;
-import static com.mouse.ui.input.Input.getTxId;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 /**
@@ -44,27 +43,41 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
  */
 public class TxnUtil {
 
-
     public static final int MIN_PEERS_CAST = 3;
     public static final int CAST_TIMEOUT = 30;
     public static final int RELAY_TIMEOUT = 10;
-    private static Wallet wallet;
-    private static String walletName;
-    PeerGroup peerGroup;
+    private Wallet wallet;
+    private String walletName;
+    private PeerGroup peerGroup;
+
+    private CoinSelector coinSelector;
 
     public TxnUtil(String name){
         walletName = name;
         wallet = Kit.wallet(walletName);
         peerGroup = Kit.peerGroup();
+
+        setCoinSelector(CoinSelectOption.DEFAULT);
     }
 
 
-    // network is passed in explicitly now rather than pulled from a UI-layer constant
+    public void setCoinSelector(CoinSelectOption option) {
+        switch (option){
+            case DEFAULT:
+                CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+                coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
+                break;
+            case HAND:
+                coinSelector = new ManualCoinSelector();
+                break;
+        }
+    }
+
     public void sweepTxn(PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-        //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
-        //Transaction txn = selectTxnInputs( addressAmountFee, sendRequest, wallet, network);
-        //Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
-        //netBroadcast(tx, wallet, peerGroup, progress);
+        SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
+        Transaction tx = selectTxnInputs( addressAmountFee, sendRequest);
+        tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
+        netBroadcast(tx, progress);
     }
 
     public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
@@ -179,9 +192,7 @@ public class TxnUtil {
 
     private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) {
 
-        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-
-        sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
+        sendRequest.coinSelector = coinSelector;
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
         Coin fee = Coin.ofSat( addressAmountFee.fee() );
@@ -223,4 +234,5 @@ public class TxnUtil {
 
         wallet.maybeCommitTx(tx);
     }
+
 }
