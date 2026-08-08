@@ -19,7 +19,7 @@ public class InfoScreen {
     private static TextTerminal terminal = textIO.getTextTerminal();
 
     public enum Choice {
-        SIMPLE, EXPANDED, PENDING, SENT, RECEIVED, MOVED, UTXO, ADDRES, TXN, WAL, BACK, EXIT
+        SIMPLE, EXPANDED, PENDING, SENT, RECEIVED, MOVED, UTXO, ADDRES, VIEW_TXN, VIEW_WAL, BACK, EXIT
     }
 
     private String walletName;
@@ -60,10 +60,10 @@ public class InfoScreen {
                 case ADDRES:
                     terminal.println( send_addresses_table(wallet) );
                     break;
-                case TXN:
+                case VIEW_TXN:
                     view_a_transaction();
                     break;
-                case WAL:
+                case VIEW_WAL:
                     show_wallet_info();
                     break;
                 case BACK:

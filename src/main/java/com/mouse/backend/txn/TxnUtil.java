@@ -1,11 +1,11 @@
 package com.mouse.backend.txn;
 
 import com.mouse.backend.Kit;
+import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.util.CoinSelectOption;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.ManualCoinSelector;
 import com.mouse.ui.input.AddressAmountFee;
-import com.mouse.backend.hook.BroadcastProgressListener;
 import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.csv.CsvAwareCoinSelector;
 import com.mouse.backend.csv.CsvP2WshSigner;
@@ -26,7 +26,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -39,7 +38,7 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 /**
  * Pure backend transaction logic — no TextIO/TextTerminal imports anywhere in this
  * class. Anywhere a password or progress reporting is needed, it's supplied by the
- * caller via PasswordPrompt / BroadcastProgressListener rather than this class
+ * caller via PasswordPrompt / InfoHook rather than this class
  * reaching into the UI layer itself.
  */
 public class TxnUtil {
@@ -74,14 +73,14 @@ public class TxnUtil {
         }
     }
 
-    public void sweepTxn(PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public void sweepTxn(PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
         //Transaction tx = selectTxnInputs( , sendRequest);
         //tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
         //netBroadcast(tx, progress);
     }
 
-    public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -92,7 +91,7 @@ public class TxnUtil {
         netBroadcast(tx, progress);
     }
 
-    public void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -125,7 +124,7 @@ public class TxnUtil {
             ext.addRedeemScript(redeemScript);
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
         }
-        progress.onEvent("redeemScript: " + redeemScript+" creationTime:"+redeemScript.creationTime());
+        progress.event("redeemScript: " + redeemScript+" creationTime:"+redeemScript.creationTime());
 
         final byte[] programBytes = redeemScript.program();
         String hexStr = HexFormat.of().formatHex(programBytes);
@@ -133,7 +132,7 @@ public class TxnUtil {
         final Instant instant = redeemScript.creationTime().get();
         final long epochSecond = instant.getEpochSecond();
 
-        progress.onEvent(Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+epochSecond);
+        progress.event(Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+epochSecond);
 
         netBroadcast(tx, progress);
     }
@@ -225,23 +224,23 @@ public class TxnUtil {
     }
 
 
-    public void netBroadcast(Transaction tx, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
-        progress.onEvent(TxnInfo.get(tx, wallet).toString());
+    public void netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
+        progress.event(TxnInfo.get(tx, wallet).toString());
 
         int now = peerGroup.numConnectedPeers();
-        progress.onEvent("broadcasting...(target: " + MIN_PEERS_CAST + " connected: " + now + ")");
+        progress.event("broadcasting...(target: " + MIN_PEERS_CAST + " connected: " + now + ")");
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, true);
 
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.onEvent("sent: done");
+            progress.event("sent: done");
 
             txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.onEvent("broadcast: done");
+            progress.event("broadcast: done");
 
             txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
-            progress.onEvent("relayed: done");
+            progress.event("relayed: done");
         } catch (TimeoutException e) { }
 
         wallet.maybeCommitTx(tx);

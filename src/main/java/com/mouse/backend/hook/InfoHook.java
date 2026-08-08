@@ -6,6 +6,6 @@ package com.mouse.backend.hook;
  * GUI status bar, etc). The UI layer supplies the implementation.
  */
 @FunctionalInterface
-public interface BroadcastProgressListener {
-    void onEvent(String message);
+public interface InfoHook {
+    void event(String message);
 }

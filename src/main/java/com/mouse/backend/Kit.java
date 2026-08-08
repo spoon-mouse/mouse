@@ -2,6 +2,7 @@ package com.mouse.backend;
 
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.KvStringSplit;
 import com.mouse.backend.util.MetaWallet;
@@ -271,5 +272,11 @@ public class Kit {
         wallet.addWatchedScripts(Collections.singletonList(script));
 
         log.info("add watched script: "+script);
+    }
+
+    public static void viewRedeemScripts(String walletName, InfoHook react) {
+        final Wallet wallet = wallets.get(walletName);
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        ext.getRedeemScripts().forEach(s->react.event(s.toString()));
     }
 }

@@ -35,7 +35,7 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 /**
  * Pure backend transaction logic — no TextIO/TextTerminal imports anywhere in this
  * class. Anywhere a password or progress reporting is needed, it's supplied by the
- * caller via PasswordPrompt / BroadcastProgressListener rather than this class
+ * caller via PasswordPrompt / InfoHook rather than this class
  * reaching into the UI layer itself.
  */
 public class TxnUtil {
