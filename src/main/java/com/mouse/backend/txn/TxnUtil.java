@@ -30,8 +30,6 @@ import java.util.concurrent.TimeoutException;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
-import static com.mouse.backend.util.CoinSelectOption.Selector.DEFAULT;
-import static com.mouse.backend.util.CoinSelectOption.Selector.HAND;
 import static com.mouse.backend.util.Config.NETWORK;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
@@ -74,10 +72,10 @@ public class TxnUtil {
     }
 
     public void sweepTxn(PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
-        SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
-        Transaction tx = selectTxnInputs( addressAmountFee, sendRequest);
-        tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
-        netBroadcast(tx, progress);
+        //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
+        //Transaction tx = selectTxnInputs( , sendRequest);
+        //tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
+        //netBroadcast(tx, progress);
     }
 
     public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
