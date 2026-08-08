@@ -268,15 +268,24 @@ public class Kit {
 
         final Wallet wallet = wallets.get(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        final Script script = ext.addRedeemScript(kvStringProgHexCreationTime);
-        wallet.addWatchedScripts(Collections.singletonList(script));
+        final Script redeemScript = ext.addRedeemScript(kvStringProgHexCreationTime);
 
-        log.info("add watched script: "+script);
+        Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
+        p2wshOutputScript = Script.parse(p2wshOutputScript.program(), redeemScript.creationTime().get() );
+
+        wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
+
+        log.info("add watched script: "+redeemScript);
     }
 
     public static void viewRedeemScripts(String walletName, InfoHook react) {
         final Wallet wallet = wallets.get(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         ext.getRedeemScripts().forEach(s->react.event(s.toString()));
+    }
+
+    public static void viewWatchedScripts(String walletName, InfoHook react) {
+        final Wallet wallet = wallets.get(walletName);
+        wallet.getWatchedScripts().forEach(s->react.event(s.toString()));
     }
 }
