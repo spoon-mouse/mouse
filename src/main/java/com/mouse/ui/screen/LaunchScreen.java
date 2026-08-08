@@ -15,9 +15,7 @@ import static com.mouse.ui.table.TxnTable.getTable;
 
 
 public class LaunchScreen {
-    public static final String APP_TITLE_LINE = "Spoon Mouse BTC";
-
-    public static final String  DEFAULT_WALLET_NAME = "wallet";
+    private static final String APP_TITLE_LINE = "Spoon Mouse BTC";
 
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();

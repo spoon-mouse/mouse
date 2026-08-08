@@ -7,7 +7,7 @@ import org.beryx.textio.TextTerminal;
 import javax.annotation.Nullable;
 
 import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
-import static com.mouse.ui.screen.LaunchScreen.DEFAULT_WALLET_NAME;
+import static com.mouse.backend.util.Config.DEFAULT_WALLET_NAME;
 import static com.mouse.ui.screen.PasswordScreen.DEFAULT_PASSWORD;
 
 public class Input {

@@ -13,6 +13,9 @@ import java.nio.file.Path;
  */
 public class Config {
 
+
+    public static final String  DEFAULT_WALLET_NAME = "wallet";
+
     public static final BitcoinNetwork NETWORK = BitcoinNetwork.TESTNET;
     public static final NetworkParameters NETWORK_PARAMETERS = NetworkParameters.of(NETWORK);
 
