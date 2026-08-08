@@ -7,6 +7,8 @@ import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
 import org.bitcoinj.core.*;
 import org.bitcoinj.store.BlockStoreException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.stream.Collectors;
 
@@ -15,6 +17,7 @@ import static com.mouse.ui.table.TxnTable.getTable;
 
 
 public class LaunchScreen {
+    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
     private static final String APP_TITLE_LINE = "Spoon Mouse BTC";
 
     private static TextIO textIO = TextIoFactory.getTextIO();
@@ -69,9 +72,7 @@ public class LaunchScreen {
             Kit.loadOrCreateWallet(walletName);
             new WalletScreen(walletName).show();
         }catch(Exception e){
-            System.out.println(e);
-            e.printStackTrace();
-            terminal.println(e.getMessage());
+            log.error("load wallets ", e);
         }
     }
 

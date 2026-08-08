@@ -11,12 +11,16 @@ import org.beryx.textio.TextTerminal;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.wallet.Wallet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutionException;
 import static com.mouse.ui.input.Input.*;
 
 
 public class SendScreen {
+
+    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
 
     public enum Choice {SEND, CSV, SWEEP, SELECTOR, BACK, EXIT;}
 
@@ -73,9 +77,8 @@ public class SendScreen {
                 terminal.println(e.getMessage());
             } catch (VerificationException e) {
                 terminal.println(e.getMessage());
-                System.out.println(e);
             } catch (ExecutionException | InterruptedException | IllegalMonitorStateException e) {
-                System.out.println(e);
+                log.error(" ", e);
             }
         }
     }

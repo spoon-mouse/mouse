@@ -4,12 +4,16 @@ import com.mouse.backend.Kit;
 import org.beryx.textio.*;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.wallet.Wallet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 
 import static com.mouse.ui.table.TxnTable.expanded_transation_table;
 import static com.mouse.ui.table.TxnTable.utxo_table;
 
 public class WalletScreen {
+
     public enum Choice { SEND, RECIVE, PENDING, UTXO, INFO, SEC, UTIL, BACK, EXIT; }
 
     private static TextIO textIO = TextIoFactory.getTextIO();
@@ -19,6 +23,7 @@ public class WalletScreen {
     private Wallet wallet;
 
     public WalletScreen(String name){
+
         walletName=name;
         wallet = Kit.wallet(walletName);
     }

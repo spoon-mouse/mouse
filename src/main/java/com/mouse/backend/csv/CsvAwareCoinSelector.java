@@ -1,9 +1,12 @@
 package com.mouse.backend.csv;
 
+import com.mouse.ui.screen.WalletScreen;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.*;
 import org.bitcoinj.wallet.CoinSelector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +14,8 @@ import java.util.List;
 import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
 
 public class CsvAwareCoinSelector implements CoinSelector {
+
+    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
 
     private final CoinSelector delegate; // e.g. DefaultCoinSelector.get()
     private List<Script> redeemScripts;
@@ -45,7 +50,7 @@ public class CsvAwareCoinSelector implements CoinSelector {
                 }
             }
 
-            System.out.println("filter included: "+output);
+            log.info("filter included: "+output);
             filtered.add(output); // either a normal output, or a mature CSV output
         }
         return delegate.select(target, filtered);

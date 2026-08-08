@@ -1,5 +1,6 @@
 package com.mouse.backend.csv;
 
+import com.mouse.ui.screen.WalletScreen;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionInput;
@@ -11,6 +12,8 @@ import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.KeyBag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -18,6 +21,8 @@ import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
 import static com.mouse.backend.csv.CsvUtil.extractPubKeyHashFromRedeemScript;
 
 public class CsvP2WshSigner implements TransactionSigner {
+
+    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
 
     private List<Script> redeemScripts;
 
@@ -42,7 +47,6 @@ public class CsvP2WshSigner implements TransactionSigner {
 
 
                 if (connectedOutput == null) {
-                    //System.out.println("WHY NULL ?");
                     continue;
                 }
 
@@ -54,9 +58,7 @@ public class CsvP2WshSigner implements TransactionSigner {
                     continue;
                 }
 
-                System.out.println("signer found one of mine: "+redeemScript);
-                System.out.println("input: "+input);
-                System.out.println("connectedOutput: "+connectedOutput);
+                log.info("redeemScript: "+redeemScript+ " input: "+input+" connectedOutput: "+connectedOutput);
 
 
                 // must set sequence BEFORE signing (it's covered by the sighash)
@@ -70,7 +72,7 @@ public class CsvP2WshSigner implements TransactionSigner {
 
                 ECKey key = keyBag.findKeyFromPubKeyHash(pubKeyHash, null);
                 if (key == null) {
-                    System.out.println("signer can't sign this one, not our key ??? why");
+                    log.error("no key for pubKeyHash: "+pubKeyHash);
                     continue; // can't sign this one, not our key
                 }
 
