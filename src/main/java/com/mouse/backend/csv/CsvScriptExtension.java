@@ -76,14 +76,14 @@ public class CsvScriptExtension implements WalletExtension {
         redeemScripts.add(redeemScript);
     }
 
-    public Script addRedeemScript(String kvStringProgHexCreationTime) {
+    public Script addRedeemScript(String kvStringProgHexCreationTimeSeconds) {
 
-        final Map<String, String> kv = KvStringSplit.split(kvStringProgHexCreationTime);
-        String hex = kv.get(Config.REDEEM_SCRIPT_HEX_KEY);
+        final Map<String, String> kv = KvStringSplit.split(kvStringProgHexCreationTimeSeconds);
+        String hexStr = kv.get(Config.REDEEM_SCRIPT_HEX_KEY);
         String creation = kv.get(Config.CREATION_TIME_KEY);
         long creationEpochSeconds = Long.parseLong(creation);
 
-        Script script = new Script(HexFormat.of().parseHex(hex), creationEpochSeconds);
+        Script script = new Script(HexFormat.of().parseHex(hexStr), creationEpochSeconds);
         addRedeemScript(script);
 
         return script;

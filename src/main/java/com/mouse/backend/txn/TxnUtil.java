@@ -24,7 +24,9 @@ import org.bitcoinj.wallet.*;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -124,7 +126,14 @@ public class TxnUtil {
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
         }
         progress.onEvent("redeemScript: " + redeemScript+" creationTime:"+redeemScript.creationTime());
-        progress.onEvent(Config.REDEEM_SCRIPT_HEX_KEY+"="+redeemScript.program()+" "+Config.CREATION_TIME_KEY+"="+redeemScript.creationTime());
+
+        final byte[] programBytes = redeemScript.program();
+        String hexStr = HexFormat.of().formatHex(programBytes);
+
+        final Instant instant = redeemScript.creationTime().get();
+        final long epochSecond = instant.getEpochSecond();
+
+        progress.onEvent(Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+epochSecond);
 
         netBroadcast(tx, progress);
     }
