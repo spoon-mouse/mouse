@@ -17,7 +17,7 @@ import static com.mouse.ui.table.TxnTable.getTable;
 
 
 public class LaunchScreen {
-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
+    private static Logger log = LoggerFactory.getLogger(LaunchScreen.class);
     private static final String APP_TITLE_LINE = "Spoon Mouse BTC";
 
     private static TextIO textIO = TextIoFactory.getTextIO();

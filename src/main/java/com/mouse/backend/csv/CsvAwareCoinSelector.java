@@ -15,7 +15,7 @@ import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
 
 public class CsvAwareCoinSelector implements CoinSelector {
 
-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
+    private static Logger log = LoggerFactory.getLogger(CsvAwareCoinSelector.class);
 
     private final CoinSelector delegate; // e.g. DefaultCoinSelector.get()
     private List<Script> redeemScripts;

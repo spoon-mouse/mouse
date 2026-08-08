@@ -20,7 +20,7 @@ import static com.mouse.ui.input.Input.*;
 
 public class SendScreen {
 
-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
+    private static Logger log = LoggerFactory.getLogger(SendScreen.class);
 
     public enum Choice {SEND, CSV, SWEEP, SELECTOR, BACK, EXIT;}
 

@@ -22,7 +22,7 @@ import static com.mouse.backend.csv.CsvUtil.extractPubKeyHashFromRedeemScript;
 
 public class CsvP2WshSigner implements TransactionSigner {
 
-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
+    private static Logger log = LoggerFactory.getLogger(CsvP2WshSigner.class);
 
     private List<Script> redeemScripts;
 
