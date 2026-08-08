@@ -28,15 +28,10 @@ public class ManualCoinSelector implements CoinSelector {
 
             UtxoId id = UtxoId.get(utxlUrl);
 
-            final TransactionOutput select = candidates.stream().filter(
-                    utxo -> utxo.getParentTransactionHash().equals(id.txIdHash()) && utxo.getIndex()==id.outputIdx()).findFirst().get();
+            final TransactionOutput select = candidates.stream().filter(utxo -> utxo.getParentTransactionHash().equals(id.txIdHash()) && utxo.getIndex()==id.outputIdx()).findFirst().get();
 
             selected.add(select);
-
         }
-
         return new CoinSelection(selected);
     }
-
-
 }
