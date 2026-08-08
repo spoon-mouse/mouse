@@ -89,7 +89,7 @@ public class CsvP2WshSigner implements TransactionSigner {
                 TransactionInput signedInput = tx.getInput(i).withWitness(witness);
                 tx.replaceInput(i, signedInput);
 
-                System.out.println("signed with: "+redeemScript);
+                log.info("signed with: "+redeemScript);
             }
         }
         return true;
