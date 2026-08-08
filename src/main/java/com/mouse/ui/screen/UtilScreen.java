@@ -9,8 +9,10 @@ import org.bitcoinj.wallet.Wallet;
 
 import java.io.IOException;
 
+import static com.mouse.ui.input.Input.getReddemScriptKV;
+
 public class UtilScreen {
-    public enum Choice { CAST, DOWN, SAVE, BACK, EXIT; }
+    public enum Choice { CAST, DOWN, SAVE, ADD_REDEEM, BACK, EXIT; }
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
 
@@ -37,6 +39,9 @@ public class UtilScreen {
                 case SAVE:
                     terminal.println("saving:");
                     Kit.save();
+                    break;
+                case ADD_REDEEM:
+                    Kit.addRedeemScript(walletName, getReddemScriptKV());
                     break;
                 case BACK:
                     return;

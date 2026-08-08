@@ -2,6 +2,7 @@ package com.mouse.backend.txn;
 
 import com.mouse.backend.Kit;
 import com.mouse.backend.util.CoinSelectOption;
+import com.mouse.backend.util.Config;
 import com.mouse.backend.util.ManualCoinSelector;
 import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.backend.hook.BroadcastProgressListener;
@@ -121,8 +122,10 @@ public class TxnUtil {
             CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
             ext.addRedeemScript(redeemScript);
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
-            progress.onEvent("redeemScript: " + redeemScript);
         }
+        progress.onEvent("redeemScript: " + redeemScript+" creationTime:"+redeemScript.creationTime());
+        progress.onEvent(Config.REDEEM_SCRIPT_HEX_KEY+"="+redeemScript.program()+" "+Config.CREATION_TIME_KEY+"="+redeemScript.creationTime());
+
         netBroadcast(tx, progress);
     }
 

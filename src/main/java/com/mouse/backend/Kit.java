@@ -3,14 +3,17 @@ package com.mouse.backend;
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.util.Config;
+import com.mouse.backend.util.KvStringSplit;
 import com.mouse.backend.util.MetaWallet;
 import com.mouse.ui.listener.DownloadTracker;
+import com.mouse.ui.screen.LaunchScreen;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.BlockChain;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
+import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
@@ -18,16 +21,17 @@ import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
@@ -42,6 +46,8 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
  * directly.
  */
 public class Kit {
+
+    private static Logger log = LoggerFactory.getLogger(Kit.class);
 
     public static final int WAIT_MIN_NUM_PEERS = 3;
     private static Kit instance;
@@ -256,4 +262,12 @@ public class Kit {
         return wallets.entrySet().stream().map( e -> MetaWallet.get(e.getKey(), e.getValue()) ).toList();
     }
 
+    public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
+        log.info("", kvStringProgHexCreationTime);
+
+        final Wallet wallet = wallets.get(walletName);
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        final Script script = ext.addRedeemScript(kvStringProgHexCreationTime);
+        wallet.addWatchedScripts(Collections.singletonList(script));
+    }
 }

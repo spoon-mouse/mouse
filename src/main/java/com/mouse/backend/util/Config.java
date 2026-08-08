@@ -25,6 +25,8 @@ public class Config {
 
     public static final String WALLET_FILE_POST_FIX = ".wallet";
     public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";
+    public static final String REDEEM_SCRIPT_HEX_KEY = "redeemScriptHex";
+    public static final String CREATION_TIME_KEY = "creationTime";
 
     private Config() {}
 }

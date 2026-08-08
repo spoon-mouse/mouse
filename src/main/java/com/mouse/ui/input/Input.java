@@ -1,5 +1,6 @@
 package com.mouse.ui.input;
 
+import com.mouse.backend.util.Config;
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
 import org.beryx.textio.TextTerminal;
@@ -13,6 +14,8 @@ import static com.mouse.ui.screen.PasswordScreen.DEFAULT_PASSWORD;
 public class Input {
 
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
+
+    public static final String REDEEM_SCRIPT_TIME_KV = "^" + Config.REDEEM_SCRIPT_HEX_KEY + "=(?:[0-9a-fA-F]{2})+ " + Config.CREATION_TIME_KEY + "=[0-9]+$";
 
     private static TextIO textIO = TextIoFactory.getTextIO();
     private static TextTerminal terminal = textIO.getTextTerminal();
@@ -72,6 +75,11 @@ public class Input {
     public static long getEpochSeconds(){
         return textIO.newLongInputReader().withMinVal(0l).withDefaultValue(0l).read("creation epoch seconds (optionally speeds up restoration):");
     }
+
+    public static String getReddemScriptKV() {
+        return textIO.newStringInputReader().withInputTrimming(true).withPattern(REDEEM_SCRIPT_TIME_KV).read("redeem script KV:");
+    }
+
 
     public static String getSeed() {
         return textIO.newStringInputReader().withInputTrimming(true).withPattern(REGEX_12_WORDS).read("12 word seed phrase:");

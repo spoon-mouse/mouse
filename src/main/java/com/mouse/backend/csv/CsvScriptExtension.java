@@ -1,5 +1,7 @@
 package com.mouse.backend.csv;
 
+import com.mouse.backend.util.Config;
+import com.mouse.backend.util.KvStringSplit;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.wallet.Wallet;
 import org.bitcoinj.wallet.WalletExtension;
@@ -7,7 +9,9 @@ import org.bitcoinj.wallet.WalletExtension;
 import java.io.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 
 public class CsvScriptExtension implements WalletExtension {
 
@@ -70,6 +74,19 @@ public class CsvScriptExtension implements WalletExtension {
 
     public void addRedeemScript(Script redeemScript) {
         redeemScripts.add(redeemScript);
+    }
+
+    public Script addRedeemScript(String kvStringProgHexCreationTime) {
+
+        final Map<String, String> kv = KvStringSplit.split(kvStringProgHexCreationTime);
+        String hex = kv.get(Config.REDEEM_SCRIPT_HEX_KEY);
+        String creation = kv.get(Config.CREATION_TIME_KEY);
+        long creationEpochSeconds = Long.parseLong(creation);
+
+        Script script = new Script(HexFormat.of().parseHex(hex), creationEpochSeconds);
+        addRedeemScript(script);
+
+        return script;
     }
 
 }
