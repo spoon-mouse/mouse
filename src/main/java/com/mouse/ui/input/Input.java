@@ -2,6 +2,9 @@ package com.mouse.ui.input;
 
 import org.beryx.textio.TextIO;
 import org.beryx.textio.TextIoFactory;
+import org.beryx.textio.TextTerminal;
+
+import javax.annotation.Nullable;
 
 import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber;
 import static com.mouse.ui.screen.LaunchScreen.DEFAULT_WALLET_NAME;
@@ -12,6 +15,8 @@ public class Input {
     public static final String REGEX_12_WORDS = "^[A-Za-z]+(?:\\s+[A-Za-z]+){11}$";
 
     private static TextIO textIO = TextIoFactory.getTextIO();
+    private static TextTerminal terminal = textIO.getTextTerminal();
+
 
 
     public static Long getAmount() {
@@ -54,8 +59,9 @@ public class Input {
         return l;
     }
 
-    public static String getTxId() {
-        return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id: ");
+    public static String getTxId(String... msg) {
+        for (String m : msg) {terminal.println(""+m);}
+        return textIO.newStringInputReader().withMinLength(0).withInputTrimming(true).read("transaction id:");
     }
 
     public static long getEpochSeconds(){

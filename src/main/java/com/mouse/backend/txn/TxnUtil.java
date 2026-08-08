@@ -1,5 +1,6 @@
 package com.mouse.backend.txn;
 
+import com.mouse.backend.Kit;
 import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.backend.hook.BroadcastProgressListener;
 import com.mouse.backend.hook.PasswordPrompt;
@@ -43,26 +44,41 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
  */
 public class TxnUtil {
 
+
+    public static final int MIN_PEERS_CAST = 3;
+    public static final int CAST_TIMEOUT = 30;
+    public static final int RELAY_TIMEOUT = 10;
+    private static Wallet wallet;
+    private static String walletName;
+    PeerGroup peerGroup;
+
+    public TxnUtil(String name){
+        walletName = name;
+        wallet = Kit.wallet(walletName);
+        peerGroup = Kit.peerGroup();
+    }
+
+
     // network is passed in explicitly now rather than pulled from a UI-layer constant
-    public static void sweepTxn(Wallet wallet, PeerGroup peerGroup, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public void sweepTxn(PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
         //Transaction txn = selectTxnInputs( addressAmountFee, sendRequest, wallet, network);
         //Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
         //netBroadcast(tx, wallet, peerGroup, progress);
     }
 
-    public static void sendTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
-        Transaction txn = selectTxnInputs(addressAmountFee, sendRequest, wallet);
-        Transaction tx = deEncryptWalletAndSignTx(txn, wallet, passwordPrompt);
-        netBroadcast(tx, wallet, peerGroup, progress);
+        Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
+        Transaction tx = deEncryptWalletAndSignTx(txn, passwordPrompt);
+        netBroadcast(tx, progress);
     }
 
-    public static void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, Wallet wallet, PeerGroup peerGroup, long confimations, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -87,8 +103,8 @@ public class TxnUtil {
         tx.addOutput(amount, p2wshOutputScript);
 
         SendRequest sendRequest = SendRequest.forTx(tx);
-        tx = selectTxnInputs(addressAmountFee, sendRequest, wallet);
-        tx = deEncryptWalletAndSignTx(tx, wallet, passwordPrompt);
+        tx = selectTxnInputs(addressAmountFee, sendRequest);
+        tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
 
         if(wallet.isAddressMine(toAddress)){
             CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
@@ -96,12 +112,12 @@ public class TxnUtil {
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
             progress.onEvent("redeemScript: " + redeemScript);
         }
-        netBroadcast(tx, wallet, peerGroup, progress);
+        netBroadcast(tx, progress);
     }
 
 
 
-    public static Transaction deEncryptWalletAndSignTx(Transaction txn, Wallet wallet, PasswordPrompt passwordPrompt) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
+    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt passwordPrompt) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
         CharSequence password=null;
@@ -110,7 +126,7 @@ public class TxnUtil {
                 password = passwordPrompt.getPassword();
                 wallet.decrypt(password);
             }
-            txn =  signTransaction(txn, wallet);
+            txn =  signTransaction(txn);
 
             if(!wallet.isEncrypted() && walletEncrypted_at_start){
                 wallet.encrypt(password);
@@ -124,7 +140,7 @@ public class TxnUtil {
     }
 
 
-    private static Transaction signTransaction(Transaction txn, Wallet wallet) {
+    private Transaction signTransaction(Transaction txn) {
 
         TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(txn);
 
@@ -161,39 +177,22 @@ public class TxnUtil {
         return txn;
     }
 
-    private static Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest, Wallet wallet ) {
+    private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) {
 
-        List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+
         sendRequest.coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
         Coin fee = Coin.ofSat( addressAmountFee.fee() );
+        Coin target = amount.add( fee );
 
-        Coin gathered = Coin.ZERO;
-        if(true) {
-            //PICK 1 UTXO BY HAND
-            String id = getTxId();
-            Sha256Hash hash = Sha256Hash.wrap(id);
+        List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
+        CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
 
-            for (TransactionOutput utxo : wallet.getUnspents()) {
-                if (utxo.getParentTransactionHash().equals( hash )) {
-                    sendRequest.tx.addInput(utxo);
-                    gathered = gathered.add(utxo.getValue());
-                    System.out.println("PICKED: "+utxo);
-                    break;
-                }
-            }
-        }else{
-            Coin target = amount.add( fee );
-            CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
-            for (TransactionOutput output : selection.gathered) {
-                sendRequest.tx.addInput(output);
-                gathered = gathered.add(output.getValue());
-            }
-        }
+        selection.outputs().stream().forEach(o -> sendRequest.tx.addInput(o));
 
-        Coin change = gathered.subtract(amount).subtract(fee);
+        Coin change = selection.totalValue().subtract(amount).subtract(fee);
         if (change.isPositive()) {
             sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
         }
@@ -203,24 +202,22 @@ public class TxnUtil {
     }
 
 
-    public static void netBroadcast(Transaction tx, Wallet wallet, PeerGroup peerGroup, BroadcastProgressListener progress)
-            throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
+    public void netBroadcast(Transaction tx, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
         progress.onEvent(TxnInfo.get(tx, wallet).toString());
 
         int now = peerGroup.numConnectedPeers();
-        int target = 3;
-        progress.onEvent("broadcasting...(target: " + target + " connected: " + now + ")");
+        progress.onEvent("broadcasting...(target: " + MIN_PEERS_CAST + " connected: " + now + ")");
 
-        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, target, true);
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, true);
 
         try {
-            txnCast.awaitSent().get(30, TimeUnit.SECONDS);
+            txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
             progress.onEvent("sent: done");
 
-            txnCast.broadcastOnly().get(30, TimeUnit.SECONDS);
+            txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
             progress.onEvent("broadcast: done");
 
-            txnCast.awaitRelayed().get(10, TimeUnit.SECONDS);
+            txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
             progress.onEvent("relayed: done");
         } catch (TimeoutException e) { }
 

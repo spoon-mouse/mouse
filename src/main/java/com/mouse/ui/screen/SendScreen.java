@@ -3,6 +3,7 @@ package com.mouse.ui.screen;
 import static com.mouse.backend.util.Config.NETWORK;
 
 import com.mouse.backend.Kit;
+import com.mouse.backend.txn.TxnUtil;
 import com.mouse.ui.input.AddressAmountFee;
 import com.mouse.ui.input.Input;
 import org.beryx.textio.TextIO;
@@ -28,10 +29,13 @@ public class SendScreen {
     private Wallet wallet;
     private PeerGroup pg;
 
+    private TxnUtil txn;
+
     public SendScreen(String name){
         walletName=name;
         wallet=Kit.wallet(walletName);
         pg=Kit.peerGroup();
+        txn = new TxnUtil(walletName);
     }
 
     public void show() {
@@ -42,18 +46,18 @@ public class SendScreen {
                     case SEND:
                         AddressAmountFee aaf = AddressAmountFee.get();
                         if(aaf!=null){
-                            sendTxn(aaf, wallet, pg, Input::getPassword, terminal::println);
+                            txn.sendTxn(aaf, Input::getPassword, terminal::println);
                         }
                         break;
                     case CSV:
                         aaf = AddressAmountFee.get();
                         if(aaf!=null) {
                             long conf = getConfirmation();
-                            checkSeqVerifyTxn(aaf, wallet, pg, conf, Input::getPassword, terminal::println);
+                            txn.checkSeqVerifyTxn(aaf, conf, Input::getPassword, terminal::println);
                         }
                         break;
                     case SWEEP:
-                        sweepTxn(wallet, pg, Input::getPassword, terminal::println);
+                        txn.sweepTxn(Input::getPassword, terminal::println);
                         break;
                     case UTXO:
                         break;
