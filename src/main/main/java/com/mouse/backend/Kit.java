@@ -23,10 +23,14 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static com.mouse.backend.util.Config.*;
 import static java.util.stream.Collectors.toList;
@@ -44,7 +48,7 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 public class Kit {
 
     public static final int WAIT_MIN_NUM_PEERS = 3;
-    private static Kit instance;
+    private static boolean started = false;
 
     private static BlockStore blockStore;
     private static org.bitcoinj.core.BlockChain chain;
@@ -52,11 +56,13 @@ public class Kit {
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
 
-    private Kit(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
-        this.blockStore = blockStore;
-        this.chain = chain;
-        this.peerGroup = peerGroup;
-    }
+    // detects laptop sleep/resume (no portable JVM event exists for this) by
+    // watching for a wall-clock jump between scheduled ticks, and forces a
+    // reconnect when one's found — see notes on the maxStalls limitation below.
+    private static final long WATCHDOG_INTERVAL_MS = 15_000;
+    private static ScheduledExecutorService sleepWatchdog;
+
+    private Kit() {}
 
     /**
      * Starts the shared node: opens one block store, one chain, one peer group,
@@ -64,17 +70,17 @@ public class Kit {
      *
      */
     public static synchronized void start() throws BlockStoreException {
-        if (instance != null) {
+        if (started) {
             return;
         }
 
-        BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
+        blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
 
-        org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
-        PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+        chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
+        peerGroup = new PeerGroup(NETWORK, chain);
         peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
 
-        instance = new Kit(blockStore, chain, peerGroup);
+        started = true;
 
         try {
             Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
@@ -93,6 +99,51 @@ public class Kit {
 
         peerGroup.start();
         peerGroup.startBlockChainDownload(new DownloadProgressTracker());
+
+        startSleepWatchdog();
+    }
+
+    /**
+     * bitcoinj's own dead-peer detection (stall disconnects) is hard-capped at
+     * 3 total per PeerGroup — after that it stops trying to replace bad peers on
+     * its own. A laptop sleep typically kills every peer at once, which can burn
+     * through that whole budget in one wake-up and leave the app stuck. There's
+     * no portable JVM "system resumed" event, so this watches for a wall-clock
+     * gap between scheduled ticks instead: if far more real time passed than the
+     * schedule expected, we were almost certainly asleep, so force every current
+     * peer closed — dead ones drop for good, and PeerGroup's normal "connection
+     * lost -> reconnect after a delay" logic re-establishes fresh ones, without
+     * relying on the exhausted stall-detection counter.
+     */
+    private static void startSleepWatchdog() {
+        sleepWatchdog = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "kit-sleep-watchdog");
+            t.setDaemon(true);
+            return t;
+        });
+
+        final long[] lastTick = { System.currentTimeMillis() };
+
+        sleepWatchdog.scheduleWithFixedDelay(() -> {
+            long now = System.currentTimeMillis();
+            long elapsed = now - lastTick[0];
+            lastTick[0] = now;
+
+            if (elapsed > WATCHDOG_INTERVAL_MS * 3) {
+                System.out.println("Kit: detected likely sleep/resume (gap " + elapsed + "ms) — forcing peer reconnect");
+                forceReconnectAllPeers();
+            }
+        }, WATCHDOG_INTERVAL_MS, WATCHDOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private static void forceReconnectAllPeers() {
+        new ArrayList<>(peerGroup.getConnectedPeers()).forEach(peer -> {
+            try {
+                peer.close();
+            } catch (Exception e) {
+                System.out.println("Kit: error closing stale peer " + peer + ": " + e.getMessage());
+            }
+        });
     }
 
 
@@ -173,6 +224,10 @@ public class Kit {
      */
     public static synchronized void stop() {
 
+        if (sleepWatchdog != null) {
+            sleepWatchdog.shutdownNow();
+        }
+
         for (String walletName : wallets.keySet()) {
             try {
                 closeWallet(walletName);
@@ -189,7 +244,7 @@ public class Kit {
             throw new RuntimeException(e);
         }
 
-        instance = null;
+        started = false;
     }
 
 

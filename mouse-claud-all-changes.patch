@@ -1,0 +1,366 @@
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/Kit.java mouse-claud/mouse-claud/src/main/java/com/mouse/backend/Kit.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/Kit.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/backend/Kit.java	2026-08-10 08:45:12.272986722 +0000
+@@ -23,10 +23,14 @@
+ import java.io.IOException;
+ import java.nio.file.Files;
+ import java.time.Instant;
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.Executors;
++import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.TimeUnit;
+ 
+ import static com.mouse.backend.util.Config.*;
+ import static java.util.stream.Collectors.toList;
+@@ -44,7 +48,7 @@
+ public class Kit {
+ 
+     public static final int WAIT_MIN_NUM_PEERS = 3;
+-    private static Kit instance;
++    private static boolean started = false;
+ 
+     private static BlockStore blockStore;
+     private static org.bitcoinj.core.BlockChain chain;
+@@ -52,11 +56,13 @@
+ 
+     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
+ 
+-    private Kit(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
+-        this.blockStore = blockStore;
+-        this.chain = chain;
+-        this.peerGroup = peerGroup;
+-    }
++    // detects laptop sleep/resume (no portable JVM event exists for this) by
++    // watching for a wall-clock jump between scheduled ticks, and forces a
++    // reconnect when one's found — see notes on the maxStalls limitation below.
++    private static final long WATCHDOG_INTERVAL_MS = 15_000;
++    private static ScheduledExecutorService sleepWatchdog;
++
++    private Kit() {}
+ 
+     /**
+      * Starts the shared node: opens one block store, one chain, one peer group,
+@@ -64,17 +70,17 @@
+      *
+      */
+     public static synchronized void start() throws BlockStoreException {
+-        if (instance != null) {
++        if (started) {
+             return;
+         }
+ 
+-        BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
++        blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
+ 
+-        org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
+-        PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
++        chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
++        peerGroup = new PeerGroup(NETWORK, chain);
+         peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
+ 
+-        instance = new Kit(blockStore, chain, peerGroup);
++        started = true;
+ 
+         try {
+             Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
+@@ -93,6 +99,51 @@
+ 
+         peerGroup.start();
+         peerGroup.startBlockChainDownload(new DownloadProgressTracker());
++
++        startSleepWatchdog();
++    }
++
++    /**
++     * bitcoinj's own dead-peer detection (stall disconnects) is hard-capped at
++     * 3 total per PeerGroup — after that it stops trying to replace bad peers on
++     * its own. A laptop sleep typically kills every peer at once, which can burn
++     * through that whole budget in one wake-up and leave the app stuck. There's
++     * no portable JVM "system resumed" event, so this watches for a wall-clock
++     * gap between scheduled ticks instead: if far more real time passed than the
++     * schedule expected, we were almost certainly asleep, so force every current
++     * peer closed — dead ones drop for good, and PeerGroup's normal "connection
++     * lost -> reconnect after a delay" logic re-establishes fresh ones, without
++     * relying on the exhausted stall-detection counter.
++     */
++    private static void startSleepWatchdog() {
++        sleepWatchdog = Executors.newSingleThreadScheduledExecutor(r -> {
++            Thread t = new Thread(r, "kit-sleep-watchdog");
++            t.setDaemon(true);
++            return t;
++        });
++
++        final long[] lastTick = { System.currentTimeMillis() };
++
++        sleepWatchdog.scheduleWithFixedDelay(() -> {
++            long now = System.currentTimeMillis();
++            long elapsed = now - lastTick[0];
++            lastTick[0] = now;
++
++            if (elapsed > WATCHDOG_INTERVAL_MS * 3) {
++                System.out.println("Kit: detected likely sleep/resume (gap " + elapsed + "ms) — forcing peer reconnect");
++                forceReconnectAllPeers();
++            }
++        }, WATCHDOG_INTERVAL_MS, WATCHDOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
++    }
++
++    private static void forceReconnectAllPeers() {
++        new ArrayList<>(peerGroup.getConnectedPeers()).forEach(peer -> {
++            try {
++                peer.close();
++            } catch (Exception e) {
++                System.out.println("Kit: error closing stale peer " + peer + ": " + e.getMessage());
++            }
++        });
+     }
+ 
+ 
+@@ -173,6 +224,10 @@
+      */
+     public static synchronized void stop() {
+ 
++        if (sleepWatchdog != null) {
++            sleepWatchdog.shutdownNow();
++        }
++
+         for (String walletName : wallets.keySet()) {
+             try {
+                 closeWallet(walletName);
+@@ -189,7 +244,7 @@
+             throw new RuntimeException(e);
+         }
+ 
+-        instance = null;
++        started = false;
+     }
+ 
+ 
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/csv/CsvAwareCoinSelector.java mouse-claud/mouse-claud/src/main/java/com/mouse/backend/csv/CsvAwareCoinSelector.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/csv/CsvAwareCoinSelector.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/backend/csv/CsvAwareCoinSelector.java	2026-08-08 09:39:09.783744185 +0000
+@@ -1,6 +1,5 @@
+ package com.mouse.backend.csv;
+ 
+-import com.mouse.ui.screen.WalletScreen;
+ import org.bitcoinj.base.Coin;
+ import org.bitcoinj.core.TransactionOutput;
+ import org.bitcoinj.script.*;
+@@ -15,7 +14,7 @@
+ 
+ public class CsvAwareCoinSelector implements CoinSelector {
+ 
+-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
++    private static Logger log = LoggerFactory.getLogger(CsvAwareCoinSelector.class);
+ 
+     private final CoinSelector delegate; // e.g. DefaultCoinSelector.get()
+     private List<Script> redeemScripts;
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/csv/CsvP2WshSigner.java mouse-claud/mouse-claud/src/main/java/com/mouse/backend/csv/CsvP2WshSigner.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/csv/CsvP2WshSigner.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/backend/csv/CsvP2WshSigner.java	2026-08-08 09:39:18.054774492 +0000
+@@ -1,6 +1,5 @@
+ package com.mouse.backend.csv;
+ 
+-import com.mouse.ui.screen.WalletScreen;
+ import org.bitcoinj.base.Coin;
+ import org.bitcoinj.core.Transaction;
+ import org.bitcoinj.core.TransactionInput;
+@@ -22,7 +21,7 @@
+ 
+ public class CsvP2WshSigner implements TransactionSigner {
+ 
+-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
++    private static Logger log = LoggerFactory.getLogger(CsvP2WshSigner.class);
+ 
+     private List<Script> redeemScripts;
+ 
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/txn/TxnUtil.java mouse-claud/mouse-claud/src/main/java/com/mouse/backend/txn/TxnUtil.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/txn/TxnUtil.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/backend/txn/TxnUtil.java	2026-08-08 09:38:13.512823135 +0000
+@@ -2,7 +2,6 @@
+ 
+ import com.mouse.backend.Kit;
+ import com.mouse.backend.util.CoinSelectOption;
+-import com.mouse.backend.util.ManualCoinSelector;
+ import com.mouse.ui.input.AddressAmountFee;
+ import com.mouse.backend.hook.BroadcastProgressListener;
+ import com.mouse.backend.hook.PasswordPrompt;
+@@ -66,11 +65,22 @@
+                 coinSelector = new CsvAwareCoinSelector(DefaultCoinSelector.get(NETWORK), ext.getRedeemScripts());
+                 break;
+             case HAND:
+-                coinSelector = new ManualCoinSelector();
+-                break;
++                throw new IllegalArgumentException(
++                        "HAND mode needs a resolved UTXO list — use setCoinSelector(CoinSelector) instead, "
++                        + "constructed by the UI after prompting for which UTXOs to use.");
+         }
+     }
+ 
++    /**
++     * Accepts any caller-supplied selection strategy directly — e.g. a UI-built
++     * ManualCoinSelector already populated with resolved UTXO choices. TxnUtil
++     * never needs to know that strategy exists; it just uses whatever CoinSelector
++     * it's given.
++     */
++    public void setCoinSelector(CoinSelector customSelector) {
++        coinSelector = customSelector;
++    }
++
+     public void sweepTxn(PasswordPrompt passwordPrompt, BroadcastProgressListener progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
+         //Transaction tx = selectTxnInputs( , sendRequest);
+Only in mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/util: ManualCoinSelector.java
+Only in mouse-claud/mouse-claud/src/main/java/com/mouse/ui/input: ManualCoinSelector.java
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/ui/screen/LaunchScreen.java mouse-claud/mouse-claud/src/main/java/com/mouse/ui/screen/LaunchScreen.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/ui/screen/LaunchScreen.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/ui/screen/LaunchScreen.java	2026-08-08 09:39:31.953912614 +0000
+@@ -17,7 +17,7 @@
+ 
+ 
+ public class LaunchScreen {
+-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
++    private static Logger log = LoggerFactory.getLogger(LaunchScreen.class);
+     private static final String APP_TITLE_LINE = "Spoon Mouse BTC";
+ 
+     private static TextIO textIO = TextIoFactory.getTextIO();
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/ui/screen/SendScreen.java mouse-claud/mouse-claud/src/main/java/com/mouse/ui/screen/SendScreen.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/ui/screen/SendScreen.java	2026-08-08 09:15:19.000000000 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/ui/screen/SendScreen.java	2026-08-08 09:39:22.492122463 +0000
+@@ -3,8 +3,10 @@
+ import com.mouse.backend.Kit;
+ import com.mouse.backend.txn.TxnUtil;
+ import com.mouse.backend.util.CoinSelectOption;
++import com.mouse.backend.util.UtxoId;
+ import com.mouse.ui.input.AddressAmountFee;
+ import com.mouse.ui.input.Input;
++import com.mouse.ui.input.ManualCoinSelector;
+ import org.beryx.textio.TextIO;
+ import org.beryx.textio.TextIoFactory;
+ import org.beryx.textio.TextTerminal;
+@@ -14,13 +16,15 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.concurrent.ExecutionException;
+ import static com.mouse.ui.input.Input.*;
+ 
+ 
+ public class SendScreen {
+ 
+-    private static Logger log = LoggerFactory.getLogger(WalletScreen.class);
++    private static Logger log = LoggerFactory.getLogger(SendScreen.class);
+ 
+     public enum Choice {SEND, CSV, SWEEP, SELECTOR, BACK, EXIT;}
+ 
+@@ -63,7 +67,17 @@
+                         break;
+                     case SELECTOR:
+                         CoinSelectOption option = textIO.newEnumInputReader(CoinSelectOption.class).read("Coin Selector:");
+-                        txn.setCoinSelector(option);
++                        if (option == CoinSelectOption.DEFAULT) {
++                            txn.setCoinSelector(CoinSelectOption.DEFAULT);
++                        } else {
++                            List<UtxoId> ids = new ArrayList<>();
++                            while (true) {
++                                String utxoUrl = getUtxoId("select UTXO by parent txn id : output idx (blank to finish)");
++                                if (utxoUrl == null || utxoUrl.isEmpty()) break;
++                                ids.add(UtxoId.get(utxoUrl));
++                            }
++                            txn.setCoinSelector(new ManualCoinSelector(ids));
++                        }
+                         terminal.println("set coin selection by "+option);
+                         break;
+                     case BACK:
+diff -ru mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/util/ManualCoinSelector.java mouse-claud/mouse-claud/src/main/java/com/mouse/backend/util/ManualCoinSelector.java
+--- mouse-claud-orig/mouse-claud/src/main/java/com/mouse/backend/util/ManualCoinSelector.java	2026-08-08 09:15:19.000000000 +0000
++++ /dev/null	2026-08-07 18:56:47.361792777 +0000
+@@ -1,37 +0,0 @@
+-package com.mouse.backend.util;
+-
+-import org.bitcoinj.base.Coin;
+-import org.bitcoinj.base.Sha256Hash;
+-import org.bitcoinj.core.TransactionOutput;
+-import org.bitcoinj.script.Script;
+-import org.bitcoinj.script.ScriptBuilder;
+-import org.bitcoinj.wallet.CoinSelection;
+-import org.bitcoinj.wallet.CoinSelector;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+-import static com.mouse.backend.csv.CsvUtil.extractCsvSequenceFromScript;
+-import static com.mouse.ui.input.Input.getTxId;
+-import static com.mouse.ui.input.Input.getUtxoId;
+-
+-public class ManualCoinSelector implements CoinSelector {
+-
+-    @Override
+-    public org.bitcoinj.wallet.CoinSelection select(Coin target, List<TransactionOutput> candidates) {
+-        List<TransactionOutput> selected = new ArrayList<>();
+-
+-        while(true){
+-
+-            String utxlUrl = getUtxoId("select UTXO by parent txn id : output idx");
+-            if(utxlUrl==null || utxlUrl.isEmpty()){break;}
+-
+-            UtxoId id = UtxoId.get(utxlUrl);
+-
+-            final TransactionOutput select = candidates.stream().filter(utxo -> utxo.getParentTransactionHash().equals(id.txIdHash()) && utxo.getIndex()==id.outputIdx()).findFirst().get();
+-
+-            selected.add(select);
+-        }
+-        return new CoinSelection(selected);
+-    }
+-}
+\ No newline at end of file
+--- /dev/null	2026-08-07 18:56:47.361792777 +0000
++++ mouse-claud/mouse-claud/src/main/java/com/mouse/ui/input/ManualCoinSelector.java	2026-08-08 09:37:42.668266669 +0000
+@@ -0,0 +1,42 @@
++package com.mouse.ui.input;
++
++import com.mouse.backend.util.UtxoId;
++import org.bitcoinj.base.Coin;
++import org.bitcoinj.core.TransactionOutput;
++import org.bitcoinj.wallet.CoinSelection;
++import org.bitcoinj.wallet.CoinSelector;
++
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * Picks a fixed, already-resolved set of UTXOs. Lives in the UI package (not
++ * backend.util) because deciding *which* UTXOs to use is a person's choice —
++ * the prompting happens in SendScreen, before this is even constructed.
++ * select() itself never blocks on input, same as every other CoinSelector.
++ */
++public class ManualCoinSelector implements CoinSelector {
++
++    private final List<UtxoId> targets;
++
++    public ManualCoinSelector(List<UtxoId> targets) {
++        this.targets = targets;
++    }
++
++    @Override
++    public CoinSelection select(Coin target, List<TransactionOutput> candidates) {
++        List<TransactionOutput> selected = new ArrayList<>();
++
++        for (UtxoId id : targets) {
++            TransactionOutput match = candidates.stream()
++                    .filter(utxo -> utxo.getParentTransactionHash().equals(id.txIdHash())
++                            && utxo.getIndex() == id.outputIdx())
++                    .findFirst()
++                    .orElseThrow(() -> new IllegalArgumentException(
++                            "No candidate UTXO matches " + id.txId() + ":" + id.outputIdx()));
++            selected.add(match);
++        }
++
++        return new CoinSelection(selected);
++    }
++}
