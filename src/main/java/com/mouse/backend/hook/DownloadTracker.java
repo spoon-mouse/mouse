@@ -1,8 +1,6 @@
-package com.mouse.ui.listener;
+package com.mouse.backend.hook;
 
-import org.beryx.textio.TextIO;
-import org.beryx.textio.TextIoFactory;
-import org.beryx.textio.TextTerminal;
+
 import org.bitcoinj.core.Block;
 import org.bitcoinj.core.FilteredBlock;
 import org.bitcoinj.core.Peer;
@@ -16,17 +14,17 @@ public class DownloadTracker extends DownloadProgressTracker {
     private long chainSize = Long.MAX_VALUE;
     private boolean first=true;
 
-    private  TextIO textIO = TextIoFactory.getTextIO();
-    private  TextTerminal terminal = textIO.getTextTerminal();
+    private InfoHook progress;
 
-
-    public DownloadTracker() { }
+    public DownloadTracker(InfoHook progress) {
+        this.progress=progress;
+    }
 
     @Override
     public void onChainDownloadStarted(Peer peer, int blocksLeft) {
         super.onChainDownloadStarted(peer, blocksLeft);
         if(first){
-            terminal.println("Downloading chain: "+blocksLeft+" blocks...");
+            progress.event("Downloading chain: "+blocksLeft+" blocks...");
             chainSize=blocksLeft;
             first=false;
         }
@@ -42,12 +40,12 @@ public class DownloadTracker extends DownloadProgressTracker {
         count++;
         if(count%100000==0){
             double pct = ((double) count /chainSize) * 100;
-            terminal.println("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
+            progress.event("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
         }
     }
 
     @Override
     public void doneDownload() {
-        terminal.println("Blockchain download complete");
+        progress.event("Blockchain download complete");
     }
 };

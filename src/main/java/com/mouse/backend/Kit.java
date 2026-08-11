@@ -4,17 +4,14 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.util.Config;
-import com.mouse.backend.util.KvStringSplit;
 import com.mouse.backend.util.MetaWallet;
-import com.mouse.ui.listener.DownloadTracker;
-import com.mouse.ui.screen.LaunchScreen;
+import com.mouse.backend.hook.DownloadTracker;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.core.BlockChain;
 import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
-import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
@@ -70,20 +67,22 @@ public class Kit {
      * for the whole app. Call once, at application startup.
      *
      */
-    public static synchronized void start() throws BlockStoreException {
+    public static synchronized void start() {
+
+
         if (instance != null) {
             return;
         }
 
-        BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
-
-        org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
-        PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
-        peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
-
-        instance = new Kit(blockStore, chain, peerGroup);
-
         try {
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
+            org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
+
+            PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+            peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
+
+            instance = new Kit(blockStore, chain, peerGroup);
+
             Files.newDirectoryStream(Config.WALLET_DIR_PATH,"*"+ Config.WALLET_FILE_POST_FIX).forEach(path -> {
                 File file = path.toFile();
                 String fileName = file.getName();
@@ -94,9 +93,10 @@ public class Kit {
                     e.printStackTrace();
                 }
             });
-        }catch (IOException e) {
+        }catch (IOException | BlockStoreException e) {
             e.printStackTrace();
         }
+
 
         peerGroup.start();
         peerGroup.startBlockChainDownload(new DownloadProgressTracker());
@@ -200,7 +200,7 @@ public class Kit {
     }
 
 
-    public static void restore_from_seed(String walletName, String seed_txt, long epochSeconds) {
+    public static void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
 
         DeterministicSeed seed;
         if(epochSeconds<=0L){
@@ -220,7 +220,7 @@ public class Kit {
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
 
-            DownloadTracker listener = new DownloadTracker();
+            DownloadTracker listener = new DownloadTracker(progress);
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
             listener.await();

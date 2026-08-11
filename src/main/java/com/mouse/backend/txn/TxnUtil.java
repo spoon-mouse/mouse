@@ -5,7 +5,7 @@ import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.util.CoinSelectOption;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.ManualCoinSelector;
-import com.mouse.ui.input.AddressAmountFee;
+import com.mouse.backend.util.AddressAmountFee;
 import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.csv.CsvAwareCoinSelector;
 import com.mouse.backend.csv.CsvP2WshSigner;

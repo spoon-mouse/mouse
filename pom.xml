@@ -10,8 +10,8 @@
     <name>spoon mouse</name>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -33,18 +33,6 @@
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.18</version>
         </dependency>
-
-        <dependency>
-            <groupId>de.vandermeer</groupId>
-            <artifactId>asciitable</artifactId>
-            <version>0.3.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.beryx</groupId>
-            <artifactId>text-io</artifactId>
-            <version>3.4.1</version>
-        </dependency>
     </dependencies>
 
 
@@ -54,15 +42,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.4.1</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <mainClass>
-                                com.mouse.Mouse
-                            </mainClass>
-                        </manifest>
-                    </archive>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -75,6 +54,9 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <minimizeJar>true</minimizeJar>
                             <filters>
                                 <filter>
