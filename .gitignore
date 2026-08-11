@@ -12,3 +12,4 @@ dependency-reduced-pom.xml
 *.wallet
 *.pass
 *.seed
+*.DS_Store
