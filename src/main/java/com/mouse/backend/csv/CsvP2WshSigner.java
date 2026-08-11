@@ -1,6 +1,5 @@
 package com.mouse.backend.csv;
 
-import com.mouse.ui.screen.WalletScreen;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionInput;
