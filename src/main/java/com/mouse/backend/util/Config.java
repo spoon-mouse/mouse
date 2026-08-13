@@ -19,9 +19,11 @@ public class Config {
     public static final BitcoinNetwork NETWORK = BitcoinNetwork.TESTNET;
     public static final NetworkParameters NETWORK_PARAMETERS = NetworkParameters.of(NETWORK);
 
-    public static final String walletDirStr = "wallet";
-    public static final Path WALLET_DIR_PATH = Path.of(walletDirStr);
-    public static final File walletDir = new File(walletDirStr);
+    //public static final String walletDirStr = "wallet";
+    public static Path WALLET_DIR_PATH;
+
+    //Path.of(walletDirStr);
+    //public static final File walletDir = new File(walletDirStr);
 
     public static final String WALLET_FILE_POST_FIX = ".wallet";
     public static final String SPVCHAIN_FILE_POST_FIX = ".spvchain";

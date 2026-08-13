@@ -2,13 +2,17 @@ package com.mouse.backend;
 
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
+import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.MetaWallet;
 import com.mouse.backend.hook.DownloadTracker;
+import com.mouse.backend.util.Utxo;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.BlockChain;
 import org.bitcoinj.core.PeerGroup;
+import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
@@ -31,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
@@ -67,12 +72,13 @@ public class Kit {
      * for the whole app. Call once, at application startup.
      *
      */
-    public static synchronized void start() {
-
+    public static synchronized void start(File filePathbase) {
 
         if (instance != null) {
             return;
         }
+
+        WALLET_DIR_PATH = filePathbase.toPath();
 
         try {
             BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
@@ -93,13 +99,15 @@ public class Kit {
                     e.printStackTrace();
                 }
             });
+
+            peerGroup.start();
+            peerGroup.startBlockChainDownload(new DownloadProgressTracker());
+
+
         }catch (IOException | BlockStoreException e) {
             e.printStackTrace();
         }
 
-
-        peerGroup.start();
-        peerGroup.startBlockChainDownload(new DownloadProgressTracker());
     }
 
 
@@ -114,7 +122,7 @@ public class Kit {
             return wallets.get(walletName);
         }
 
-        File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
+        File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
         CsvScriptExtension csv = new CsvScriptExtension();
         Wallet wallet;
 
@@ -213,7 +221,7 @@ public class Kit {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(walletDirStr+"/"+walletName+SPVCHAIN_FILE_POST_FIX));
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH.toFile(), walletName + SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
@@ -242,7 +250,7 @@ public class Kit {
 
     public static void save(String walletName) {
         try {
-            File walletFile = new File(walletDirStr, walletName + WALLET_FILE_POST_FIX);
+            File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             wallets.get(walletName).saveToFile(walletFile);
         } catch (IOException e) {
             e.printStackTrace();
@@ -288,4 +296,14 @@ public class Kit {
         final Wallet wallet = wallets.get(walletName);
         wallet.getWatchedScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
+
+    public static List<Utxo> utxos(String walletName) {
+        final Wallet wallet = wallets.get(walletName);
+
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        CsvUtil scvUtil = new CsvUtil( ext.getRedeemScripts() );
+
+        return wallet.getUnspents().stream().map( o -> new Utxo(o.getParentTransactionHash().toString(), o.getIndex(), o.getScriptPubKey().getToAddress(NETWORK).toString(), scvUtil.isTxOutputCsvScript(o), scvUtil.getRelativeLock(o), o.getValue().value, o.getParentTransactionDepthInBlocks()) ).toList();
+    }
+
 }
