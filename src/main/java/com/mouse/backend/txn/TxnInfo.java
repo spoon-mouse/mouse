@@ -88,10 +88,14 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     }
 
     public String toString(){
-        return "transaction: "+id+" "+type+" amount: "+amount +" fee: "+fee+" total: "+total+" value: "+ tx().getValue(wallet).value;
+        return "transaction: "+id+" "+type+" amount: "+amount +" fee: "+fee+" total: "+total+" value: "+ value();
     }
 
     public long value() {
         return tx.getValue(wallet).value;
     }
+
+    public long fromMe() { return tx.getValueSentFromMe(wallet).getValue(); }
+    public long toMe() { return tx.getValueSentToMe(wallet).getValue(); }
+
 }

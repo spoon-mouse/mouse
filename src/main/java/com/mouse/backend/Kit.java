@@ -4,15 +4,14 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.MetaWallet;
 import com.mouse.backend.hook.DownloadTracker;
 import com.mouse.backend.util.Utxo;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
-import org.bitcoinj.core.BlockChain;
-import org.bitcoinj.core.PeerGroup;
-import org.bitcoinj.core.TransactionOutput;
+import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
@@ -309,5 +308,12 @@ public class Kit {
 
         return wallet.getUnspents().stream().map( o -> new Utxo(o.getParentTransactionHash().toString(), o.getIndex(), o.getScriptPubKey().getToAddress(NETWORK).toString(), scvUtil.isTxOutputCsvScript(o), scvUtil.getRelativeLock(o), o.getValue().value, o.getParentTransactionDepthInBlocks()) ).toList();
     }
+
+
+    public static List<TxnInfo> getTxns(String walletName) {
+        final Wallet wallet = wallets.get(walletName);
+        return wallet.getTransactionsByTime().stream().map(txn -> TxnInfo.get(txn, wallet)).toList();
+    }
+
 
 }
