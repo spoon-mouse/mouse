@@ -271,6 +271,10 @@ public class Kit {
         return wallets.entrySet().stream().map( e -> MetaWallet.get(e.getKey(), e.getValue()) ).toList();
     }
 
+    public static MetaWallet getMetaWallet(String walletName){
+        return MetaWallet.get(walletName, wallets.get(walletName));
+    }
+
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
         log.info("", kvStringProgHexCreationTime);
 
