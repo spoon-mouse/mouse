@@ -22,6 +22,8 @@ public record MetaWallet(Wallet wallet, String name, String id) {
         return wallet.isEncrypted();
     }
 
+    public boolean isNotEncrypted() {return ! isEncrypted();}
+
     public long balance() {
         return wallet.getBalance().getValue();
     }
