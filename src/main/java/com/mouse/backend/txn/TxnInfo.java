@@ -6,7 +6,10 @@ import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.mouse.backend.util.Config.NETWORK;
 
@@ -98,4 +101,7 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     public long fromMe() { return tx.getValueSentFromMe(wallet).getValue(); }
     public long toMe() { return tx.getValueSentToMe(wallet).getValue(); }
 
+    public String blockHash(){
+        return tx.getAppearsInHashes().entrySet().stream().max(Comparator.comparingInt(Map.Entry::getValue)).get().getKey().toString();
+    }
 }

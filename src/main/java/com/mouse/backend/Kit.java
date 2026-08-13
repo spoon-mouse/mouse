@@ -159,6 +159,10 @@ public class Kit {
         return chain;
     }
 
+    public static Wallet getWallet(String walletName) {
+        return wallet(walletName);
+    }
+
     public static Wallet wallet(String walletName) {
         Wallet wallet = wallets.get(walletName);
         if (wallet == null) {
@@ -271,7 +275,7 @@ public class Kit {
     }
 
     public static MetaWallet getMetaWallet(String walletName){
-        return MetaWallet.get(walletName, wallets.get(walletName));
+        return MetaWallet.get(walletName, getWallet(walletName));
     }
 
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
