@@ -187,6 +187,15 @@ public class Kit {
         wallets.remove(walletName);
     }
 
+    public static void deleteWallet(String walletName) throws IOException {
+        closeWallet(walletName);
+        File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+        if (walletFile.exists()) {
+            walletFile.delete();
+        }
+    }
+
+
     /**
      * Stops the shared node entirely — call once, at application shutdown.
      * Saves every currently loaded wallet first.
@@ -226,7 +235,7 @@ public class Kit {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
-            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH.toFile(), walletName + SPVCHAIN_FILE_POST_FIX));
+            BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH.toFile(), "restore" + SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
@@ -238,7 +247,8 @@ public class Kit {
             peerGroup.startBlockChainDownload(listener);
             listener.await();
 
-            save(walletName);
+            File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+            wallet.saveToFile(walletFile);
 
             peerGroup.stop();
             blockStore.close();
