@@ -38,9 +38,9 @@ public class DownloadTracker extends DownloadProgressTracker {
     public void onBlocksDownloaded(Peer peer, Block block, @Nullable FilteredBlock filteredBlock, int blocksLeft) {
         super.onBlocksDownloaded(peer, block, filteredBlock, blocksLeft);
         count++;
-        if(count%100000==0){
+        if(count%100==0){
             double pct = ((double) count /chainSize) * 100;
-            progress.event("blocks downloaded: "+count+" "+String.format("%.1f", pct)+"%");
+            progress.event("blocks downloaded: "+count+" "+String.format("%.2f", pct)+"%");
         }
     }
 

@@ -9,9 +9,11 @@ import com.mouse.backend.util.Config;
 import com.mouse.backend.util.MetaWallet;
 import com.mouse.backend.hook.DownloadTracker;
 import com.mouse.backend.util.Utxo;
+import org.bitcoinj.base.Address;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
+import org.bitcoinj.core.listeners.BlocksDownloadedEventListener;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
@@ -25,11 +27,13 @@ import org.bitcoinj.wallet.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -129,6 +133,7 @@ public class Kit {
 
         if (walletFile.exists()) {
             wallet = Wallet.loadFromFile(walletFile, csv);
+            wallet.addOrGetExistingExtension(csv);
         } else {
             wallet = Wallet.createDeterministic(NETWORK, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.addExtension(csv);
@@ -239,6 +244,9 @@ public class Kit {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
+            final Path f = WALLET_DIR_PATH.resolve("restore" + SPVCHAIN_FILE_POST_FIX);
+            Files.deleteIfExists(f);
+
             BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH.toFile(), "restore" + SPVCHAIN_FILE_POST_FIX));
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
@@ -249,6 +257,11 @@ public class Kit {
             DownloadTracker listener = new DownloadTracker(progress);
             peerGroup.start();
             peerGroup.startBlockChainDownload(listener);
+
+            peerGroup.addConnectedEventListener((peer, connected) -> {
+                progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
+            });
+
             listener.await();
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
@@ -343,9 +356,13 @@ public class Kit {
         return wallet.currentReceiveAddress().toString();
     }
 
-    public static String getFreshReceiveAddress(String walletName) {
+
+
+
+
+    public static List<String> getIssuedReceiveAddresses(String walletName) {
         final Wallet wallet = wallets.get(walletName);
-        return wallet.freshReceiveAddress().toString();
+        return wallet.getIssuedReceiveAddresses().stream().map(Address::toString).toList();
     }
 
 
