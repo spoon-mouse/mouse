@@ -224,6 +224,10 @@ public class Kit {
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
 
+        if (wallets.containsKey(walletName)) {
+            throw new IllegalArgumentException("Wallet already exists: " + walletName);
+        }
+
         DeterministicSeed seed;
         if(epochSeconds<=0L){
             seed = DeterministicSeed.ofMnemonic(seed_txt, "");
@@ -249,6 +253,8 @@ public class Kit {
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             wallet.saveToFile(walletFile);
+
+            Kit.wallets.put(walletName, wallet);
 
             peerGroup.stop();
             blockStore.close();
