@@ -1,12 +1,5 @@
 package com.mouse.backend;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
@@ -220,7 +213,7 @@ public class Kit {
     }
 
 
-    public static void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
+    public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
 
         DeterministicSeed seed;
         if(epochSeconds<=0L){
@@ -260,7 +253,7 @@ public class Kit {
         return peerGroup.numConnectedPeers();
     }
 
-    public static void save(String walletName) {
+    public static synchronized void save(String walletName) {
         try {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             wallets.get(walletName).saveToFile(walletFile);
@@ -334,43 +327,11 @@ public class Kit {
         return wallet.currentReceiveAddress().toString();
     }
 
-    public static BufferedImage getCurrentReceiveAddressQR(String walletName, int square) throws WriterException {
-
-            String address = getCurrentReceiveAddress(walletName);
-
-            Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
-            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
-            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-            hints.put(EncodeHintType.MARGIN, 1);
-
-            QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix matrix = writer.encode( address, BarcodeFormat.QR_CODE, square, square );
-
-            BufferedImage image = new BufferedImage(square, square, BufferedImage.TYPE_INT_RGB);
-            for (int y = 0; y < square; y++) {
-                for (int x = 0; x < square; x++) {
-                    int color = matrix.get(x, y) ? 0xFF000000 : 0xFFFFFFFF;
-                    image.setRGB(x, y, color);
-                }
-            }
-
-            return image;
-
+    public static String getFreshReceiveAddress(String walletName) {
+        final Wallet wallet = wallets.get(walletName);
+        return wallet.freshReceiveAddress().toString();
     }
 
-    public static BitMatrix getCurrentReceiveAddressQRmatrix(String walletName, int square) throws WriterException {
 
-        String address = getCurrentReceiveAddress(walletName);
-
-        Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
-        hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H);
-        hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-        hints.put(EncodeHintType.MARGIN, 1);
-
-        QRCodeWriter writer = new QRCodeWriter();
-        BitMatrix matrix = writer.encode( address, BarcodeFormat.QR_CODE, square, square );
-
-        return matrix;
-    }
 
 }
