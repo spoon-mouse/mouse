@@ -428,11 +428,11 @@ public class Kit {
         } );
 
         wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
-            progress.event("wallet: " + e.getKey() + " sent " + txn.getValue(wallet));
+            progress.event(e.getKey() + " sent " + txn.getValue(wallet));
         }));
 
         wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
-            progress.event("wallet: " + e.getKey() + " received " + txn.getValue(wallet));
+            progress.event(e.getKey() + " received " + txn.getValue(wallet));
         }));
 
     }
