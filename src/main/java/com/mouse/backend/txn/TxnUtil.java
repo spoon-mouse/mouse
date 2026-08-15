@@ -80,7 +80,11 @@ public class TxnUtil {
         //netBroadcast(tx, progress);
     }
 
-    public void sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+
+        if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
+            throw new Wallet.TransactionCompletionException("Not enough connected peers to broadcast transaction try again later");
+        }
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -88,10 +92,10 @@ public class TxnUtil {
         SendRequest sendRequest = SendRequest.to(address, amount);
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
         Transaction tx = deEncryptWalletAndSignTx(txn, passwordPrompt);
-        netBroadcast(tx, progress);
+        return TxnInfo.get(netBroadcast(tx, progress), wallet);
     }
 
-    public void checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public Transaction checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -134,7 +138,7 @@ public class TxnUtil {
 
         progress.event(Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+epochSecond);
 
-        netBroadcast(tx, progress);
+        return netBroadcast(tx, progress);
     }
 
 
@@ -224,7 +228,7 @@ public class TxnUtil {
     }
 
 
-    public void netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
+    public Transaction netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
         progress.event(TxnInfo.get(tx, wallet).toString());
 
         int now = peerGroup.numConnectedPeers();
@@ -233,20 +237,24 @@ public class TxnUtil {
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, true);
 
 
+
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("sent: done");
+            progress.event("sent: " + tx.getTxId().toString());
+            wallet.commitTx(tx);
+            Kit.save();
+            //txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
+            //progress.event("broadcast: done");
+            //txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
+            //progress.event("relayed: done");
 
-            txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("broadcast: done");
-
-            txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("relayed: done");
         } catch (TimeoutException e) {
             progress.event("timed out "+e.getMessage());
         }
 
-        wallet.maybeCommitTx(tx);
+
+
+        return tx;
     }
 
 }

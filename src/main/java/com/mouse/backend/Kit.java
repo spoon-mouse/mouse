@@ -108,7 +108,14 @@ public class Kit {
             });
 
             peerGroup.start();
-            peerGroup.startBlockChainDownload(new DownloadProgressTracker());
+            //peerGroup.startBlockChainDownload(new DownloadProgressTracker());
+            peerGroup.startBlockChainDownload(new DownloadProgressTracker() {
+                @Override
+                protected void doneDownload() {
+                    log.info("Chain Sync complete");
+                    // your code here: update UI, enable send button, etc.
+                }
+            });
 
 
         }catch (IOException | BlockStoreException e) {
@@ -368,11 +375,11 @@ public class Kit {
     }
 
 
-    public static void doSomeListningOrSomeThingLiekThis(InfoHook react){
+
+    public static void doSomeListningOrSomeThingLiekThis(){
 
         peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
-            log.info("Blocks downloaded: {}", blocksLeft);
-            react.event("Blocks downloaded: "+blocksLeft);
+            log.info("Blocks downloaded: left {}", blocksLeft);
         } );
 /*
         peerGroup.addChainDownloadStartedEventListener((peer, blocks) -> {
@@ -383,17 +390,14 @@ public class Kit {
 
         peerGroup.addOnTransactionBroadcastListener((peer, tx) -> {
             log.info("Transaction broadcast: {}", tx);
-            react.event("Transaction broadcast: "+tx.getTxId());
         });
 
         wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
             log.info(e.getKey()+" sent "+txn.getTxId());
-            react.event(e.getKey()+" sent "+txn.getTxId());
         }));
 
         wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
             log.info(e.getKey()+" recived "+txn.getTxId());
-            react.event(e.getKey()+" recived "+txn.getTxId());
         }));
 
         /*
@@ -407,10 +411,25 @@ public class Kit {
 
         wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {
             log.info(e.getKey()+" changed ");
-            react.event(e.getKey()+" changed ");
         }));
     }
 
 
+    public static void txnListener(InfoHook progress){
+
+        peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
+            if(blocksLeft==0)
+                progress.event("Block downloaded:");
+        } );
+
+        wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
+            progress.event("wallet: " + e.getKey() + " sent " + txn.getValue(wallet));
+        }));
+
+        wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
+            progress.event("wallet: " + e.getKey() + " received " + txn.getValue(wallet));
+        }));
+
+    }
 
 }
