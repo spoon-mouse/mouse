@@ -370,6 +370,17 @@ public class Kit {
 
     public static void doSomeListningOrSomeThingLiekThis(InfoHook react){
 
+        peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
+            log.info("Blocks downloaded: {}", blocksLeft);
+            react.event("Blocks downloaded: "+blocksLeft);
+        } );
+/*
+        peerGroup.addChainDownloadStartedEventListener((peer, blocks) -> {
+            log.info("Chain download started: {}", blocks);
+            react.event("Chain download started: "+blocks);
+        });
+*/
+
         peerGroup.addOnTransactionBroadcastListener((peer, tx) -> {
             log.info("Transaction broadcast: {}", tx);
             react.event("Transaction broadcast: "+tx.getTxId());
@@ -385,17 +396,21 @@ public class Kit {
             react.event(e.getKey()+" recived "+txn.getTxId());
         }));
 
+        /*
         wallets.entrySet().forEach( e -> e.getValue().addTransactionConfidenceEventListener((wallet, txn) -> {
             log.info(e.getKey()+" confidence change "+txn.getTxId());
             react.event(e.getKey()+" confidence change "+txn.getTxId());
         }));
+        */
+
+
 
         wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {
             log.info(e.getKey()+" changed ");
             react.event(e.getKey()+" changed ");
         }));
-
-
     }
+
+
 
 }

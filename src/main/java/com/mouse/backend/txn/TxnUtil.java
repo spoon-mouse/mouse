@@ -232,6 +232,7 @@ public class TxnUtil {
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, true);
 
+
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
             progress.event("sent: done");
@@ -241,7 +242,9 @@ public class TxnUtil {
 
             txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
             progress.event("relayed: done");
-        } catch (TimeoutException e) { }
+        } catch (TimeoutException e) {
+            progress.event("timed out "+e.getMessage());
+        }
 
         wallet.maybeCommitTx(tx);
     }
