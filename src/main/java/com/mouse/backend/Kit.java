@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.xml.datatype.Duration;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +40,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
@@ -65,6 +67,8 @@ public class Kit {
     private static BlockStore blockStore;
     private static org.bitcoinj.core.BlockChain chain;
     private static PeerGroup peerGroup;
+
+    private static java.time.Duration autosaveDuration = java.time.Duration.ofSeconds(5);
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
 
@@ -108,7 +112,6 @@ public class Kit {
             });
 
             peerGroup.start();
-            //peerGroup.startBlockChainDownload(new DownloadProgressTracker());
             peerGroup.startBlockChainDownload(new DownloadProgressTracker() {
                 @Override
                 protected void doneDownload() {
@@ -143,10 +146,11 @@ public class Kit {
         if (walletFile.exists()) {
             wallet = Wallet.loadFromFile(walletFile, csv);
             wallet.addOrGetExistingExtension(csv);
+            wallet.autosaveToFile(walletFile, autosaveDuration, null);
         } else {
             wallet = Wallet.createDeterministic(NETWORK, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.addExtension(csv);
-            wallet.saveToFile(walletFile);
+            wallet.autosaveToFile(walletFile, autosaveDuration, null);
         }
         wallet.setAcceptRiskyTransactions(true);
         attachCsvSupport(wallet, csv);
@@ -195,6 +199,7 @@ public class Kit {
         final Wallet wallet = wallets.get(walletName);
         if (wallet == null) return;
 
+        wallet.shutdownAutosaveAndWait();
         peerGroup.removeWallet(wallet);
         chain.removeWallet(wallet);
         save(walletName);
@@ -274,7 +279,7 @@ public class Kit {
             listener.await();
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-            wallet.saveToFile(walletFile);
+            wallet.autosaveToFile(walletFile, autosaveDuration, null);
 
             Kit.wallets.put(walletName, wallet);
 
@@ -291,7 +296,7 @@ public class Kit {
         return peerGroup.numConnectedPeers();
     }
 
-    public static synchronized void save(String walletName) {
+    private static synchronized void save(String walletName) {
         try {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             wallets.get(walletName).saveToFile(walletFile);

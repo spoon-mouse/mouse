@@ -242,7 +242,6 @@ public class TxnUtil {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
             progress.event("sent: " + tx.getTxId().toString());
             wallet.commitTx(tx);
-            Kit.save();
             //txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
             //progress.event("broadcast: done");
             //txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
