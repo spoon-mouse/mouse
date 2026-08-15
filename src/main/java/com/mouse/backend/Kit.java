@@ -10,6 +10,7 @@ import com.mouse.backend.util.MetaWallet;
 import com.mouse.backend.hook.DownloadTracker;
 import com.mouse.backend.util.Utxo;
 import org.bitcoinj.base.Address;
+import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
@@ -24,6 +25,7 @@ import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.wallet.listeners.WalletCoinsSentEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,5 +368,34 @@ public class Kit {
     }
 
 
+    public static void doSomeListningOrSomeThingLiekThis(InfoHook react){
+
+        peerGroup.addOnTransactionBroadcastListener((peer, tx) -> {
+            log.info("Transaction broadcast: {}", tx);
+            react.event("Transaction broadcast: "+tx.getTxId());
+        });
+
+        wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
+            log.info(e.getKey()+" sent "+txn.getTxId());
+            react.event(e.getKey()+" sent "+txn.getTxId());
+        }));
+
+        wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
+            log.info(e.getKey()+" recived "+txn.getTxId());
+            react.event(e.getKey()+" recived "+txn.getTxId());
+        }));
+
+        wallets.entrySet().forEach( e -> e.getValue().addTransactionConfidenceEventListener((wallet, txn) -> {
+            log.info(e.getKey()+" confidence change "+txn.getTxId());
+            react.event(e.getKey()+" confidence change "+txn.getTxId());
+        }));
+
+        wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {
+            log.info(e.getKey()+" changed ");
+            react.event(e.getKey()+" changed ");
+        }));
+
+
+    }
 
 }
