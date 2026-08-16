@@ -61,7 +61,6 @@ public class Kit {
 
     private static Logger log = LoggerFactory.getLogger(Kit.class);
 
-    public static final int WAIT_MIN_NUM_PEERS = 3;
     private static Kit instance;
 
     private static BlockStore blockStore;
@@ -422,10 +421,13 @@ public class Kit {
 
     public static void txnListener(InfoHook progress){
 
+        //wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {progress.event(e.getKey()+"");}));
+
         peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
-            if(blocksLeft==0)
+            if(blocksLeft==0){
                 progress.event("Block downloaded:");
-        } );
+            }
+        });
 
         wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
             progress.event(e.getKey() + " sent " + txn.getValue(wallet));
