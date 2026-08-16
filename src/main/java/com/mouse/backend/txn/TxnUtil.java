@@ -143,7 +143,7 @@ public class TxnUtil {
 
 
 
-    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt passwordPrompt) throws InsufficientMoneyException, Wallet.TransactionCompletionException {
+    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt passwordPrompt) throws Wallet.TransactionCompletionException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
         CharSequence password=null;
@@ -203,24 +203,43 @@ public class TxnUtil {
         return txn;
     }
 
-    private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) {
+    private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) throws InsufficientMoneyException{
 
         sendRequest.coinSelector = coinSelector;
+
+        if(sendRequest.coinSelector==null){
+            throw new IllegalStateException("FAILLE sendRequest.coinSelector == null");
+        }
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
         Coin fee = Coin.ofSat( addressAmountFee.fee() );
         Coin target = amount.add( fee );
 
+        if(amount.isZero() || amount.isNegative()){
+            throw new IllegalStateException("Amount is invalid for transaction "+addressAmountFee);
+        }
+
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
         CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
 
+        if (selection.totalValue().isLessThan(target)) {
+            throw new InsufficientMoneyException(target.subtract(selection.totalValue()));
+        }
+
+        if(selection.outputs().isEmpty()){
+            throw new IllegalStateException("No suitable inputs selected for transaction "+addressAmountFee);
+        }
+
         selection.outputs().stream().forEach(o -> sendRequest.tx.addInput(o));
 
-        if(!amount.isZero()){
-            Coin change = selection.totalValue().subtract(amount).subtract(fee);
-            if (change.isPositive()) {
-                sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
-            }
+
+        Coin change = selection.totalValue().subtract(amount).subtract(fee);
+        if(change.isNegative()) {
+            throw new InsufficientMoneyException(change);
+        }
+
+        if (change.isPositive()) {
+            sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
         }
 
         //VERSION 2 to enable CSV i think ?
