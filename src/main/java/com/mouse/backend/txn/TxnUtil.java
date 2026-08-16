@@ -224,6 +224,11 @@ public class TxnUtil {
         }
 
         sendRequest.tx.setVersion(2);
+
+        // Signal BIP125 opt-in RBF on input 0
+        TransactionInput input0 = sendRequest.tx.getInput(0);
+        sendRequest.tx.replaceInput(0, input0.withSequence(0xFFFFFFFDL));
+
         return sendRequest.tx;
     }
 
@@ -234,7 +239,7 @@ public class TxnUtil {
         int now = peerGroup.numConnectedPeers();
         progress.event("broadcasting...(target: " + MIN_PEERS_CAST + " connected: " + now + ")");
 
-        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, true);
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
 
 
 

@@ -419,24 +419,24 @@ public class Kit {
     }
 
 
-    public static void txnListener(InfoHook progress){
-
-        //wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {progress.event(e.getKey()+"");}));
-
+    public static void blockDownloaded(InfoHook progress){
         peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
             if(blocksLeft==0){
                 progress.event("Block downloaded:");
             }
         });
+    }
 
+    public static void btcSent(InfoHook progress){
         wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
             progress.event(e.getKey() + " sent " + txn.getValue(wallet));
         }));
+    }
 
+    public static void btcReceived(InfoHook progress){
         wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
             progress.event(e.getKey() + " received " + txn.getValue(wallet));
         }));
-
     }
 
 }
