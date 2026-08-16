@@ -83,10 +83,11 @@ public class TxnUtil {
     public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new Wallet.TransactionCompletionException("Not enough connected peers to broadcast transaction try again later");
+            throw new Wallet.TransactionCompletionException("Not enough connections try again later [" + peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST + "]");
         }
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
+
 
         if(wallet.isAddressMine(address)){
             throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");
