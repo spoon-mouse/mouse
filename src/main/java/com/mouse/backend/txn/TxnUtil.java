@@ -87,6 +87,11 @@ public class TxnUtil {
         }
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
+
+        if(wallet.isAddressMine(address)){
+            throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");
+        }
+
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
