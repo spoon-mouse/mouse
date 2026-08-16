@@ -309,6 +309,10 @@ public class Kit {
         wallets.keySet().stream().forEach( k -> {save(k);});
     }
 
+    public static void cleanup() {
+        wallets.values().stream().forEach( w -> w.cleanup());
+    }
+
 
     public static Set<String> getWalletNames() {
         return wallets.keySet();
