@@ -223,6 +223,7 @@ public class TxnUtil {
             }
         }
 
+        //VERSION 2 to enable CSV i think ?
         sendRequest.tx.setVersion(2);
 
         // Signal BIP125 opt-in RBF on input 0
