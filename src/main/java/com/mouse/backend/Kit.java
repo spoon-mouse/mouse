@@ -429,13 +429,22 @@ public class Kit {
 
     public static void btcSent(InfoHook progress){
         wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
-            progress.event(e.getKey() + " sent " + txn.getValue(wallet));
+            final String walletName = e.getKey();
+            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+
+            long amount = txnInfo.amount();
+            progress.event(walletName+" "+txnInfo.type()+" "+amount+" + fee: "+txnInfo.fee());
         }));
     }
 
     public static void btcReceived(InfoHook progress){
         wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
-            progress.event(e.getKey() + " received " + txn.getValue(wallet));
+            final String walletName = e.getKey();
+            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+
+            if(txnInfo.isNotChange()){
+                progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.value());
+            }
         }));
     }
 

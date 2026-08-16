@@ -33,6 +33,15 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
 
     public boolean isSend(){ return type == TxType.SENT; }
 
+    public boolean isChange(){
+        return value()<0 && fromMe() > 0 && toMe() > 0;
+    }
+
+    public boolean isNotChange(){
+        return ! isChange();
+    }
+
+
     private static TxnInfo get(Wallet wallet, Transaction txn, String id, long fromMe, long toMe, long fee, long value) {
         long amount=0;
         TxType type;
