@@ -13,6 +13,7 @@ import com.mouse.backend.csv.CsvScriptExtension;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.ECKey;
 import org.bitcoinj.crypto.TransactionSignature;
@@ -83,22 +84,23 @@ public class TxnUtil {
     public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new Wallet.TransactionCompletionException("bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
+            throw new Wallet.TransactionCompletionException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
         }
 
-        final Address address = wallet.parseAddress( addressAmountFee.address() );
-
-
-        //if(wallet.isAddressMine(address)){
-        //    throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");
-        //}
+        Address address = null;
+        try{
+            address = wallet.parseAddress( addressAmountFee.address() );
+        }catch (AddressFormatException e){
+            throw new Wallet.TransactionCompletionException("Bad address");
+        }
+        //if(wallet.isAddressMine(address)){throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");}
 
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
 
         if(sendRequest.tx.getOutputs().stream().anyMatch(TransactionOutput::isDust)){
-            throw new IllegalStateException("Can not send dust");
+            throw new IllegalStateException("Cannot send dust");
         }
 
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
@@ -161,7 +163,11 @@ public class TxnUtil {
         try {
             if(walletEncrypted_at_start) {
                 password = passwordPrompt.getPassword();
-                wallet.decrypt(password);
+                try {
+                    wallet.decrypt(password);
+                }catch (Wallet.BadWalletEncryptionKeyException e){
+                    throw new Wallet.TransactionCompletionException("Bad decryption");
+                }
             }
             txn =  signTransaction(txn);
 
@@ -269,15 +275,15 @@ public class TxnUtil {
 
     public Transaction netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
 
+        wallet.maybeCommitTx(tx);
+
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
+        progress.event("broadcasting...");
         try {
-            progress.event("broadcasting...");
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("relayed");
-
-            wallet.commitTx(tx);
-
+            progress.event("cast");
+            //txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
+            //progress.event("relayed");
         } catch (TimeoutException e) { }
 
         return tx;
