@@ -23,6 +23,7 @@ import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.*;
 
+import java.net.ConnectException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HexFormat;
@@ -74,24 +75,24 @@ public class TxnUtil {
         }
     }
 
-    public void sweepTxn(PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public void sweepTxn(PasswordPrompt passwordPrompt, InfoHook progress) {
         //SendRequest sendRequest = SendRequest.emptyWallet(wallet.currentReceiveAddress());
         //Transaction tx = selectTxnInputs( , sendRequest);
         //tx = deEncryptWalletAndSignTx(tx, passwordPrompt);
         //netBroadcast(tx, progress);
     }
 
-    public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
+    public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws ConnectException, AddressFormatException, IllegalAmountException, InsufficientMoneyException, Wallet.DustySendRequested, Wallet.BadWalletEncryptionKeyException, IllegalStateException {
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new Wallet.TransactionCompletionException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
+            throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
         }
 
         Address address = null;
         try{
             address = wallet.parseAddress( addressAmountFee.address() );
         }catch (AddressFormatException e){
-            throw new Wallet.TransactionCompletionException("Bad address");
+            throw new  AddressFormatException("Bad address");
         }
         //if(wallet.isAddressMine(address)){throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");}
 
@@ -100,7 +101,7 @@ public class TxnUtil {
         SendRequest sendRequest = SendRequest.to(address, amount);
 
         if(sendRequest.tx.getOutputs().stream().anyMatch(TransactionOutput::isDust)){
-            throw new IllegalStateException("Cannot send dust");
+            throw new Wallet.DustySendRequested();
         }
 
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
@@ -108,7 +109,7 @@ public class TxnUtil {
         return TxnInfo.get(netBroadcast(tx, progress), wallet);
     }
 
-    public Transaction checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException {
+    public Transaction checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -156,7 +157,7 @@ public class TxnUtil {
 
 
 
-    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt passwordPrompt) throws Wallet.TransactionCompletionException {
+    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt passwordPrompt) throws Wallet.BadWalletEncryptionKeyException {
 
         final boolean walletEncrypted_at_start = wallet.isEncrypted();
         CharSequence password=null;
@@ -166,7 +167,7 @@ public class TxnUtil {
                 try {
                     wallet.decrypt(password);
                 }catch (Wallet.BadWalletEncryptionKeyException e){
-                    throw new Wallet.TransactionCompletionException("Bad decryption");
+                    throw new Wallet.BadWalletEncryptionKeyException(e);
                 }
             }
             txn =  signTransaction(txn);
@@ -220,7 +221,7 @@ public class TxnUtil {
         return txn;
     }
 
-    private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) throws InsufficientMoneyException{
+    private Transaction selectTxnInputs(AddressAmountFee addressAmountFee, SendRequest sendRequest) throws InsufficientMoneyException, IllegalAmountException{
 
         sendRequest.coinSelector = coinSelector;
 
@@ -233,7 +234,7 @@ public class TxnUtil {
         Coin target = amount.add( fee );
 
         if(amount.isZero() || amount.isNegative()){
-            throw new IllegalStateException("Amount is invalid "+amount.toString());
+            throw new IllegalAmountException("Amount is invalid "+amount.toString());
         }
 
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
@@ -248,6 +249,7 @@ public class TxnUtil {
         }
 
         selection.outputs().stream().forEach(o -> sendRequest.tx.addInput(o));
+
 
 
         Coin change = selection.totalValue().subtract(amount).subtract(fee);
@@ -273,18 +275,19 @@ public class TxnUtil {
     }
 
 
-    public Transaction netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
-
+    public Transaction netBroadcast(Transaction tx, InfoHook progress) {
         wallet.maybeCommitTx(tx);
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
         progress.event("broadcasting...");
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("cast");
+
+            //progress.event("cast");
             //txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
             //progress.event("relayed");
-        } catch (TimeoutException e) { }
+        } catch (TimeoutException | InterruptedException | ExecutionException e) { }
+        //maybe throw a broadcast time out so app know to recast.or app can just re cast pendin ...
 
         return tx;
     }

@@ -4,6 +4,7 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.txn.TxType;
 import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.MetaWallet;
