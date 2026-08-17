@@ -44,7 +44,7 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 public class TxnUtil {
 
     public static final int MIN_PEERS_CAST = 3;
-    public static final int CAST_TIMEOUT = 30;
+    public static final int CAST_TIMEOUT = 10;
     public static final int RELAY_TIMEOUT = 10;
     private Wallet wallet;
     private String walletName;
@@ -83,7 +83,7 @@ public class TxnUtil {
     public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new Wallet.TransactionCompletionException("Not enough connections try again later [" + peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST + "]");
+            throw new Wallet.TransactionCompletionException("low connections " + peerGroup.numConnectedPeers() + " of " + MIN_PEERS_CAST +" try again later");
         }
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
@@ -96,9 +96,9 @@ public class TxnUtil {
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
-        //i am assuming Idx 0 is set with the txn output
-        if(sendRequest.tx.getOutput(0).isDust()){
-            throw new IllegalStateException("Can not send dust: "+addressAmountFee );
+
+        if(sendRequest.tx.getOutputs().stream().anyMatch(TransactionOutput::isDust)){
+            throw new IllegalStateException("Can not send dust");
         }
 
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
@@ -219,7 +219,7 @@ public class TxnUtil {
         sendRequest.coinSelector = coinSelector;
 
         if(sendRequest.coinSelector==null){
-            throw new IllegalStateException("FAILLE sendRequest.coinSelector == null");
+            throw new IllegalStateException("FAIL: coinSelector == null");
         }
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -227,7 +227,7 @@ public class TxnUtil {
         Coin target = amount.add( fee );
 
         if(amount.isZero() || amount.isNegative()){
-            throw new IllegalStateException("Amount is invalid for transaction "+addressAmountFee);
+            throw new IllegalStateException("Amount is invalid "+amount.toString());
         }
 
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
@@ -238,7 +238,7 @@ public class TxnUtil {
         }
 
         if(selection.outputs().isEmpty()){
-            throw new IllegalStateException("No suitable inputs selected for transaction "+addressAmountFee);
+            throw new IllegalStateException("No UTXO available");
         }
 
         selection.outputs().stream().forEach(o -> sendRequest.tx.addInput(o));
@@ -270,27 +270,18 @@ public class TxnUtil {
     public Transaction netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
         progress.event(TxnInfo.get(tx, wallet).toString());
 
-        int now = peerGroup.numConnectedPeers();
-        progress.event("broadcasting...(target: " + MIN_PEERS_CAST + " connected: " + now + ")");
-
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
-
-
-
         try {
+            progress.event("broadcasting...");
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            progress.event("sent: " + tx.getTxId().toString());
+            txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
+            progress.event("relayed");
+
             wallet.commitTx(tx);
-            //txnCast.broadcastOnly().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-            //progress.event("broadcast: done");
-            //txnCast.awaitRelayed().get(RELAY_TIMEOUT, TimeUnit.SECONDS);
-            //progress.event("relayed: done");
 
         } catch (TimeoutException e) {
             progress.event("timed out "+e.getMessage());
         }
-
-
 
         return tx;
     }

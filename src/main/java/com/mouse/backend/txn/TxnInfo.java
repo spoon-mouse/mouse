@@ -113,4 +113,10 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     public String blockHash(){
         return tx.getAppearsInHashes().entrySet().stream().max(Comparator.comparingInt(Map.Entry::getValue)).get().getKey().toString();
     }
+
+
+    public boolean isDusty(){
+         return tx.getOutputs().stream().anyMatch(TransactionOutput::isDust);
+    }
+
 }
