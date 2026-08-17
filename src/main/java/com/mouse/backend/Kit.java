@@ -313,6 +313,10 @@ public class Kit {
         wallets.values().stream().forEach( w -> w.cleanup());
     }
 
+    public static void cleanup(String walletName) {
+        getWallet(walletName).cleanup();
+    }
+
 
     public static Set<String> getWalletNames() {
         return wallets.keySet();
@@ -431,25 +435,30 @@ public class Kit {
         });
     }
 
-    public static void btcSent(InfoHook progress){
-        wallets.entrySet().forEach( e -> e.getValue().addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
-            final String walletName = e.getKey();
-            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
 
-            long amount = txnInfo.amount();
-            progress.event(walletName+" "+txnInfo.type()+" "+amount+" + fee: "+txnInfo.fee());
-        }));
+    public static void btcSent(String walletName, InfoHook progress){
+        wallets.get(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
+            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+            progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.amount()+" + fee: "+txnInfo.fee());
+        });
     }
 
-    public static void btcReceived(InfoHook progress){
-        wallets.entrySet().forEach( e -> e.getValue().addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
-            final String walletName = e.getKey();
-            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+    public static void btcSent(InfoHook progress){
+        wallets.keySet().forEach(k -> btcSent(k, progress));
+    }
 
+
+    public static void btcReceived(String walletName, InfoHook progress){
+        wallets.get(walletName).addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
+            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
             if(txnInfo.isNotChange()){
                 progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.value());
             }
-        }));
+        });
+    }
+
+    public static void btcReceived(InfoHook progress){
+        wallets.keySet().forEach(k -> btcReceived(k, progress));
     }
 
 }

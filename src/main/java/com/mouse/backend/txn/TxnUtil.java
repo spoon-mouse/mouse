@@ -89,13 +89,18 @@ public class TxnUtil {
         final Address address = wallet.parseAddress( addressAmountFee.address() );
 
 
-        if(wallet.isAddressMine(address)){
-            throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");
-        }
+        //if(wallet.isAddressMine(address)){
+        //    throw new IllegalStateException("Cannot send to own address use consolidate UTXO instead");
+        //}
 
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
 
         SendRequest sendRequest = SendRequest.to(address, amount);
+        //i am assuming Idx 0 is set with the txn output
+        if(sendRequest.tx.getOutput(0).isDust()){
+            throw new IllegalStateException("Can not send dust: "+addressAmountFee );
+        }
+
         Transaction txn = selectTxnInputs(addressAmountFee, sendRequest);
         Transaction tx = deEncryptWalletAndSignTx(txn, passwordPrompt);
         return TxnInfo.get(netBroadcast(tx, progress), wallet);
@@ -245,7 +250,10 @@ public class TxnUtil {
         }
 
         if (change.isPositive()) {
-            sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
+            TransactionOutput changeOutput = new TransactionOutput( null, change, wallet.currentChangeAddress());
+            if (!changeOutput.isDust()) {
+                sendRequest.tx.addOutput(change, wallet.currentChangeAddress());
+            }
         }
 
         //VERSION 2 to enable CSV i think ?
