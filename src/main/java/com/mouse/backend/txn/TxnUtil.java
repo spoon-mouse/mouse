@@ -83,7 +83,7 @@ public class TxnUtil {
     public TxnInfo sendTxn(AddressAmountFee addressAmountFee, PasswordPrompt passwordPrompt, InfoHook progress) throws Wallet.TransactionCompletionException, InsufficientMoneyException, ExecutionException, InterruptedException, VerificationException {
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new Wallet.TransactionCompletionException("low connections " + peerGroup.numConnectedPeers() + " of " + MIN_PEERS_CAST +" try again later");
+            throw new Wallet.TransactionCompletionException("bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
         }
 
         final Address address = wallet.parseAddress( addressAmountFee.address() );
@@ -268,7 +268,6 @@ public class TxnUtil {
 
 
     public Transaction netBroadcast(Transaction tx, InfoHook progress) throws Wallet.TransactionCompletionException, ExecutionException, InterruptedException, VerificationException {
-        progress.event(TxnInfo.get(tx, wallet).toString());
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
         try {
@@ -279,9 +278,7 @@ public class TxnUtil {
 
             wallet.commitTx(tx);
 
-        } catch (TimeoutException e) {
-            progress.event("timed out "+e.getMessage());
-        }
+        } catch (TimeoutException e) { }
 
         return tx;
     }
