@@ -230,12 +230,13 @@ public class TxnUtil {
         }
 
         Coin amount = Coin.ofSat( addressAmountFee.amount() );
-        Coin fee = Coin.ofSat( addressAmountFee.fee() );
-        Coin target = amount.add( fee );
-
         if(amount.isZero() || amount.isNegative()){
             throw new IllegalAmountException("Amount is invalid "+amount.toString());
         }
+
+        Coin fee = Coin.ofSat( addressAmountFee.fee() );
+        Coin target = amount.add( fee );
+
 
         List<TransactionOutput> candidates = wallet.calculateAllSpendCandidates(true, false);
         CoinSelection selection = sendRequest.coinSelector.select(target, candidates);
