@@ -413,15 +413,6 @@ public class Kit {
             log.info(e.getKey()+" recived "+txn.getTxId());
         }));
 
-        /*
-        wallets.entrySet().forEach( e -> e.getValue().addTransactionConfidenceEventListener((wallet, txn) -> {
-            log.info(e.getKey()+" confidence change "+txn.getTxId());
-            react.event(e.getKey()+" confidence change "+txn.getTxId());
-        }));
-        */
-
-
-
         wallets.entrySet().forEach( e -> e.getValue().addChangeEventListener((wallet) -> {
             log.info(e.getKey()+" changed ");
         }));
@@ -437,10 +428,12 @@ public class Kit {
     }
 
 
-    public static void btcSent(String walletName, InfoHook progress){
-        wallets.get(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
-            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
-            progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.amount()+" + fee: "+txnInfo.fee());
+    public void walletUpdated(InfoHook progress){
+        wallets.keySet().forEach(k -> walletUpdated(k, progress));
+    }
+    public static void walletUpdated(String walletName, InfoHook progress){
+        wallets.get(walletName).addChangeEventListener((wallet) -> {
+            progress.event(walletName+" updated");
         });
     }
 
@@ -448,6 +441,17 @@ public class Kit {
         wallets.keySet().forEach(k -> btcSent(k, progress));
     }
 
+    public static void btcSent(String walletName, InfoHook progress){
+        wallets.get(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
+            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+            progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.amount()+" + fee: "+txnInfo.fee());
+        });
+    }
+
+
+    public static void btcReceived(InfoHook progress){
+        wallets.keySet().forEach(k -> btcReceived(k, progress));
+    }
 
     public static void btcReceived(String walletName, InfoHook progress){
         wallets.get(walletName).addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
@@ -456,10 +460,6 @@ public class Kit {
                 progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.value());
             }
         });
-    }
-
-    public static void btcReceived(InfoHook progress){
-        wallets.keySet().forEach(k -> btcReceived(k, progress));
     }
 
 }
