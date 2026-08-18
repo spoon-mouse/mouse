@@ -4,18 +4,14 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
-import com.mouse.backend.txn.TxType;
 import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.Config;
 import com.mouse.backend.util.MetaWallet;
 import com.mouse.backend.hook.DownloadTracker;
 import com.mouse.backend.util.Utxo;
 import org.bitcoinj.base.Address;
-import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
-import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.*;
-import org.bitcoinj.core.listeners.BlocksDownloadedEventListener;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
@@ -26,22 +22,16 @@ import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.UnreadableWalletException;
 import org.bitcoinj.wallet.Wallet;
-import org.bitcoinj.wallet.listeners.WalletCoinsSentEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-import javax.xml.datatype.Duration;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
@@ -389,17 +379,11 @@ public class Kit {
 
 
 
-    public static void doSomeListningOrSomeThingLiekThis(){
+    public static void addLoggingInfoForWalletBlockEvents(){
 
         peerGroup().addBlocksDownloadedEventListener((peer, block, filteredBlock, blocksLeft)-> {
             log.info("Blocks downloaded: left {}", blocksLeft);
         } );
-/*
-        peerGroup.addChainDownloadStartedEventListener((peer, blocks) -> {
-            log.info("Chain download started: {}", blocks);
-            react.event("Chain download started: "+blocks);
-        });
-*/
 
         peerGroup.addOnTransactionBroadcastListener((peer, tx) -> {
             log.info("Transaction broadcast: {}", tx);
