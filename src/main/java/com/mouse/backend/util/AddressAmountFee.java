@@ -1,6 +1,8 @@
 package com.mouse.backend.util;
 
 
+import org.bitcoinj.base.Coin;
+
 public record AddressAmountFee(String address, long amount, long fee) {
 
     public static long MIN_FEE=1;
@@ -20,5 +22,8 @@ public record AddressAmountFee(String address, long amount, long fee) {
     }
 
 
+    public Coin getFeeCoin(){
+        return Coin.ofSat(fee);
+    }
 
 }

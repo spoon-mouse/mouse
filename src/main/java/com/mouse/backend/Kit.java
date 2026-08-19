@@ -4,13 +4,14 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.txn.IllegalAmountException;
 import com.mouse.backend.txn.TxnInfo;
-import com.mouse.backend.util.Config;
-import com.mouse.backend.util.MetaWallet;
+import com.mouse.backend.util.*;
 import com.mouse.backend.hook.DownloadTracker;
-import com.mouse.backend.util.Utxo;
 import org.bitcoinj.base.Address;
+import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.net.discovery.DnsDiscovery;
@@ -18,20 +19,21 @@ import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.BlockStoreException;
 import org.bitcoinj.store.SPVBlockStore;
-import org.bitcoinj.wallet.DeterministicSeed;
-import org.bitcoinj.wallet.KeyChainGroupStructure;
-import org.bitcoinj.wallet.UnreadableWalletException;
-import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.wallet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
@@ -369,6 +371,53 @@ public class Kit {
     }
 
 
+    public static TxnInfo sendStandardTxn(String walletName, AddressAmountFee addressAmountFee, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
+        final Wallet wallet = getWallet(walletName);
+
+        if(peerGroup.numConnectedPeers() < MIN_PEERS_TO_CAST_TXN) {
+            throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_TO_CAST_TXN+"]");
+        }
+
+        Address address = null;
+        try{
+            address = wallet.parseAddress( addressAmountFee.address() );
+        }catch (AddressFormatException e){
+            throw new  AddressFormatException("Bad address");
+        }
+
+        final Coin amount = Coin.ofSat( addressAmountFee.amount() );
+
+        if(amount.isZero() || amount.isNegative()){
+            throw new IllegalAmountException("Amount is invalid "+amount);
+        }
+
+        SendRequest sendRequest = SendRequest.to(address, amount);
+        sendRequest.setFeePerVkb(addressAmountFee.getFeeCoin());
+
+        if(wallet.isEncrypted()) {
+            CharArrayCharSequence passwordCharSeq = new CharArrayCharSequence(password);
+            sendRequest.aesKey = wallet.getKeyCrypter().deriveKey(passwordCharSeq);
+            passwordCharSeq.wipe();
+        }
+
+        Wallet.SendResult sendResult;
+        try {
+             sendResult = wallet.sendCoins(sendRequest);
+        }catch (Exception e) {
+            throw e;
+        }finally {
+            if (sendRequest.aesKey != null) {
+                Arrays.fill(sendRequest.aesKey.bytes(), (byte) 0);
+            }
+        }
+
+        try {
+            sendResult.getBroadcast().awaitSent().get(10, TimeUnit.SECONDS);
+            progress.event("broadcast");
+        } catch (InterruptedException | ExecutionException | TimeoutException e) { }
+
+        return TxnInfo.get( sendResult.transaction(), wallet);
+    }
 
 
 
