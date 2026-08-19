@@ -30,10 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
@@ -371,7 +368,7 @@ public class Kit {
     }
 
 
-    public static TxnInfo sendStandardTxn(String walletName, AddressAmountFee addressAmountFee, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
+    public static TxnInfo sendStandardTxn(String walletName, String addressTxt, long amount, double feePerVbyte, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
         final Wallet wallet = getWallet(walletName);
 
         if(peerGroup.numConnectedPeers() < MIN_PEERS_TO_CAST_TXN) {
@@ -380,19 +377,19 @@ public class Kit {
 
         Address address = null;
         try{
-            address = wallet.parseAddress( addressAmountFee.address() );
+            address = wallet.parseAddress( addressTxt );
         }catch (AddressFormatException e){
             throw new  AddressFormatException("Bad address");
         }
 
-        final Coin amount = Coin.ofSat( addressAmountFee.amount() );
-
-        if(amount.isZero() || amount.isNegative()){
-            throw new IllegalAmountException("Amount is invalid "+amount);
+        final Coin amountCoin = Coin.ofSat( amount );
+        if(amountCoin.isZero() || amountCoin.isNegative()){
+            throw new IllegalAmountException("Amount is invalid "+amountCoin);
         }
 
-        SendRequest sendRequest = SendRequest.to(address, amount);
-        sendRequest.setFeePerVkb(addressAmountFee.getFeeCoin());
+        Coin feePerVkbCoin = Coin.ofSat( (long) (feePerVbyte * 1000));
+        SendRequest sendRequest = SendRequest.to(address, amountCoin);
+        sendRequest.setFeePerVkb(feePerVkbCoin);
 
         if(wallet.isEncrypted()) {
             CharArrayCharSequence passwordCharSeq = new CharArrayCharSequence(password);
@@ -412,20 +409,42 @@ public class Kit {
         }
 
         try {
+            progress.event("broadcast...");
             sendResult.getBroadcast().awaitSent().get(10, TimeUnit.SECONDS);
-            progress.event("broadcast");
+            progress.event("cast");
         } catch (InterruptedException | ExecutionException | TimeoutException e) { }
 
         return TxnInfo.get( sendResult.transaction(), wallet);
     }
-
-
 
     public static List<String> getIssuedReceiveAddresses(String walletName) {
         final Wallet wallet = wallets.get(walletName);
         return wallet.getIssuedReceiveAddresses().stream().map(Address::toString).toList();
     }
 
+    public static void reCast(String walletName, InfoHook progress){
+        final Wallet wallet = wallets.get(walletName);
+
+        List<TransactionBroadcast> casts = wallet.getPendingTransactions().stream().map(tx -> Kit.peerGroup().broadcastTransaction(tx, MIN_PEERS_TO_CAST_TXN, false)).toList();
+
+        CompletableFuture[] sent = casts.stream().map(cast -> cast.awaitSent()).toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(sent).get(30, TimeUnit.SECONDS);
+            progress.event("broadcast "+sent.length+" tnx");
+        }catch (Exception e){
+            progress.event("broadcast timeout");
+            log.error("Error occurred while waiting for transactions to be sent", e);
+        }
+
+        CompletableFuture[] relay = casts.stream().map(cast -> cast.awaitRelayed()).toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(relay).get(30, TimeUnit.SECONDS);
+            progress.event("relayed "+relay.length+" tnx");
+        } catch (Exception e) {
+            progress.event("relay timeout");
+            log.error("Error occurred while waiting for transactions to be relayed", e);
+        }
+    }
 
 
     public static void addLoggingInfoForWalletBlockEvents(){

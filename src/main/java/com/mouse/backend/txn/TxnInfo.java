@@ -66,27 +66,42 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
 
 
     private boolean hasMyAddress(TransactionOutput o){
-        return wallet.isAddressMine( o.getScriptPubKey().getToAddress(NETWORK));
+        try {
+            return wallet.isAddressMine(o.getScriptPubKey().getToAddress(NETWORK));
+        }catch (Exception e){
+            return false;
+        }
     }
 
-    public static Address getAddress(TransactionOutput o){ return o.getScriptPubKey().getToAddress(NETWORK); }
+    public static Address getAddress(TransactionOutput o){
+        return o.getScriptPubKey().getToAddress(NETWORK);
+    }
+
+    public static String getAddressStr(TransactionOutput o){
+        try{
+            return o.getScriptPubKey().getToAddress(NETWORK).toString();
+        }catch (Exception e){
+            return e.getMessage();
+        }
+    }
+
 
     public List<Address> getAllAddresOfOutputs(){
         return tx.getOutputs().stream().map(TxnInfo::getAddress).toList();
     }
 
-    public Address toAddress(){
+    public String toAddress(){
         if( type == TxType.SENT ) {
             return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
-                     .map(TxnInfo::getAddress).findFirst().orElse(null);
+                     .map(TxnInfo::getAddressStr).findFirst().orElse("");
 
         }else if(type == TxType.MOVED){
             return tx.getOutputs().stream().filter(o->hasMyAddress(o))
-                     .findFirst().map(TxnInfo::getAddress).orElse(null);
+                     .findFirst().map(TxnInfo::getAddressStr).orElse("");
 
         }else if(type == TxType.RECEIVE){
-            return tx.getOutputs().stream().filter(o->hasMyAddress(o))
-                      .filter(o->o.getValue().value == amount).findFirst().map(TxnInfo::getAddress).orElse(null);
+            return tx.getOutputs().stream().filter( o->hasMyAddress(o))
+                      .filter(o->o.getValue().value == amount).findFirst().map(TxnInfo::getAddressStr).orElse("");
         }
         return null;
     }
