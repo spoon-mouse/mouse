@@ -2,6 +2,7 @@ package com.mouse.backend.txn;
 
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
@@ -129,6 +130,13 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         return tx.getAppearsInHashes().entrySet().stream().max(Comparator.comparingInt(Map.Entry::getValue)).get().getKey().toString();
     }
 
+    public String overRidingTxnId(){
+        final Sha256Hash overridingTxId = tx.getConfidence().getOverridingTxId();
+        if (overridingTxId != null) {
+            return overridingTxId.toString();
+        }
+        return null;
+    }
 
     public boolean isDusty(){
          return tx.getOutputs().stream().anyMatch(TransactionOutput::isDust);

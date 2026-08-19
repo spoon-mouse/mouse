@@ -97,6 +97,7 @@ public class Kit {
                     loadOrCreateWallet(walletName);
                 } catch (UnreadableWalletException | IOException e) {
                     e.printStackTrace();
+                    log.error("loading wallet " + walletName + " failed: " + e.getMessage());
                 }
             });
 
@@ -139,6 +140,7 @@ public class Kit {
         } else {
             wallet = Wallet.createDeterministic(NETWORK, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.addExtension(csv);
+            wallet.saveToFile(walletFile);
             wallet.autosaveToFile(walletFile, autosaveDuration, null);
         }
         wallet.setAcceptRiskyTransactions(true);
@@ -268,6 +270,7 @@ public class Kit {
             listener.await();
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+            wallet.saveToFile(walletFile);
             wallet.autosaveToFile(walletFile, autosaveDuration, null);
 
             Kit.wallets.put(walletName, wallet);
@@ -277,6 +280,7 @@ public class Kit {
 
         } catch (Exception e) {
             e.printStackTrace();
+            log.error("Error occurred while restoring wallet: "+walletName+" "+ e.getMessage());
         }
     }
 
@@ -430,12 +434,14 @@ public class Kit {
         CompletableFuture[] sent = casts.stream().map(cast -> cast.awaitSent()).toArray(CompletableFuture[]::new);
         try {
             CompletableFuture.allOf(sent).get(30, TimeUnit.SECONDS);
-            progress.event("broadcast "+sent.length+" tnx");
+            progress.event("broadcast txn:"+sent.length+" connections:"+peerGroup().numConnectedPeers());
         }catch (Exception e){
             progress.event("broadcast timeout");
             log.error("Error occurred while waiting for transactions to be sent", e);
         }
 
+        //not much point waiting for relayed
+        /*
         CompletableFuture[] relay = casts.stream().map(cast -> cast.awaitRelayed()).toArray(CompletableFuture[]::new);
         try {
             CompletableFuture.allOf(relay).get(30, TimeUnit.SECONDS);
@@ -444,6 +450,7 @@ public class Kit {
             progress.event("relay timeout");
             log.error("Error occurred while waiting for transactions to be relayed", e);
         }
+        */
     }
 
 
