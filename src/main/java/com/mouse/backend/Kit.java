@@ -350,6 +350,18 @@ public class Kit {
         wallet.getWatchedScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
+    public static long getLockedBalance(String walletName) {
+        return getCheckSeqVerLockedUtxos(walletName).stream().mapToLong(Utxo::value).sum();
+    }
+
+    public static List<Utxo> getCheckSeqVerLockedUtxos(String walletName) {
+        return getCheckSeqVerUtxos(walletName).stream().filter(Utxo::isCheckSeqVerLocked).toList();
+    }
+
+    public static List<Utxo> getCheckSeqVerUtxos(String walletName) {
+        return utxos(walletName).stream().filter(Utxo::isCheckSeqVer).toList();
+    }
+
     public static List<Utxo> utxos(String walletName) {
         final Wallet wallet = wallets.get(walletName);
 

@@ -8,7 +8,7 @@ import java.util.Objects;
 
 import static com.mouse.backend.util.Config.NETWORK;
 
-public record Utxo(TransactionOutput output, CsvUtil scvUtil){
+public record Utxo(TransactionOutput output, CsvUtil chekSeqVerUtil){
 
         public String txId(){
             return Objects.requireNonNull( output.getParentTransactionHash() ).toString();
@@ -22,31 +22,36 @@ public record Utxo(TransactionOutput output, CsvUtil scvUtil){
             return output.getScriptPubKey().getToAddress(NETWORK).toString();
         }
 
-        public boolean csv(){
-            return scvUtil.isTxOutputCsvScript(output);
+        public boolean isCheckSeqVer(){
+            return chekSeqVerUtil.isTxOutputCsvScript(output);
         }
 
-        public long relLock(){
-            return scvUtil.getRelativeLock(output);
+        public long relativeBlocksLock(){
+            return chekSeqVerUtil.getRelativeLock(output);
         }
+
 
         public long value(){
             return output.getValue().value;
         }
 
-        public int depth(){
+        public int blockDepth(){
             return output.getParentTransactionDepthInBlocks();
         }
 
-        public long lockedBlockCount(){
-            return relLock() - depth();
+        public boolean isCheckSeqVerLocked(){
+            return blocksRemaining() > 0;
+        }
+
+        public long blocksRemaining (){
+            return relativeBlocksLock() - blockDepth();
         }
 
         public Script getRedeemScript(){
-            return scvUtil.getRedeemScript(output);
+            return chekSeqVerUtil.getRedeemScript(output);
         }
 
         public  String getRedeemScriptHexKV() {
-            return scvUtil.getRedeemScriptHexKV(output);
+            return chekSeqVerUtil.getRedeemScriptHexKV(output);
         }
 }
