@@ -10,7 +10,7 @@ import org.bitcoinj.wallet.Wallet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.mouse.backend.util.Config.NETWORK;
 
@@ -91,18 +91,21 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         return tx.getOutputs().stream().map(TxnInfo::getAddress).toList();
     }
 
-    public String toAddress(){
+    public String getAddressSentTo(){
         if( type == TxType.SENT ) {
-            return tx.getOutputs().stream().filter(o -> o.getValue().value == amount)
-                     .map(TxnInfo::getAddressStr).findFirst().orElse("");
+            Stream<TransactionOutput> notMy = tx.getOutputs().stream().filter(o -> !o.isMine(wallet));
+            return notMy.filter(o -> o.getValue().value == amount).map(TxnInfo::getAddressStr).findFirst().orElse("");
 
         }else if(type == TxType.MOVED){
-            return tx.getOutputs().stream().filter(o->hasMyAddress(o))
-                     .findFirst().map(TxnInfo::getAddressStr).orElse("");
+            return tx.getOutputs().stream().filter(o->hasMyAddress(o)).findFirst().map(TxnInfo::getAddressStr).orElse("");
 
         }else if(type == TxType.RECEIVE){
-            return tx.getOutputs().stream().filter( o->hasMyAddress(o))
-                      .filter(o->o.getValue().value == amount).findFirst().map(TxnInfo::getAddressStr).orElse("");
+            List<TransactionOutput> out = tx.getOutputs().stream().filter(o -> o.getValue().value == amount).toList();
+            String address = out.stream().filter(o -> o.isMine(wallet)).findFirst().map(TxnInfo::getAddressStr).orElse("");
+            if(!address.isEmpty()){
+                return address;
+            }
+            return out.stream().map(TxnInfo::getAddressStr).findFirst().orElse("");
         }
         return null;
     }

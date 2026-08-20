@@ -384,12 +384,17 @@ public class Kit {
     }
 
     public static void saveIfAddressInKit(Address address, Script redeemScript, Script p2wshOutputScript) {
-
         wallets.values().stream().filter(wallet -> wallet.isAddressMine(address)).forEach(wallet -> {
             CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
             ext.addRedeemScript(redeemScript);
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
         });
+
+        boolean found = wallets.values().stream().filter(w -> w.isAddressMine(address) ).findFirst().isPresent();
+        if(!found) {
+            // Handle the case where the address is not found in any wallet
+            // May show a QR of "address="+address+" "+getRedeemScriptHexKV(redeemScript)
+        }
     }
 
 
