@@ -1,47 +1,67 @@
 package com.mouse.backend.csv;
 
+import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.util.Config;
 import org.bitcoinj.base.internal.ByteUtils;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.*;
 
+import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 
 public class CsvUtil {
 
-    private List<Script> redeemScripts;
+    private final CsvScriptExtension ext;
+    private final List<Script> redeemScripts;
 
-    public CsvUtil(List<Script> redeemScripts ){
-        this.redeemScripts=redeemScripts;
+    public CsvUtil(CsvScriptExtension ext) {
+        this.ext = ext;
+        this.redeemScripts = this.ext.getRedeemScripts();
     }
 
-
-
+    public Script getRedeemScript(TransactionOutput output){
+        for (Script redeemScript : redeemScripts) {
+            Script scriptPubKey = output.getScriptPubKey();
+            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
+            if (scriptPubKey.equals(expectedP2wsh)) {
+                return redeemScript;
+            }
+        }
+        return null;
+    }
 
     public boolean isTxOutputCsvScript( TransactionOutput output) {
-        for (Script redeemScript : redeemScripts) {
-            Script scriptPubKey = output.getScriptPubKey();
-            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-            if (scriptPubKey.equals(expectedP2wsh)) {
-                return true;
-            }
-        }
-        return false;
+        return getRedeemScript(output) != null;
     }
-
 
     public long getRelativeLock(TransactionOutput output) {
-        for (Script redeemScript : redeemScripts) {
-            Script scriptPubKey = output.getScriptPubKey();
-            Script expectedP2wsh = ScriptBuilder.createP2WSHOutputScript(redeemScript);
-            if (scriptPubKey.equals(expectedP2wsh)) {
-                return extractCsvSequenceFromScript(redeemScript);
-            }
-        }
-        return 0;
+        Script redeemScript = getRedeemScript(output);
+        return extractCsvSequenceFromScript(redeemScript);
     }
+
+    public String getRedeemScriptHexKV(TransactionOutput output ) {
+        Script redeemScript = getRedeemScript(output);
+        return getRedeemScriptHexKV(redeemScript);
+    }
+
+    public static String getRedeemScriptHexKV(Script redeemScript) {
+        checkRedeemScript(redeemScript);
+
+        final byte[] programBytes = redeemScript.program();
+        String hexStr = HexFormat.of().formatHex(programBytes);
+
+        final Instant instant = redeemScript.creationTime().orElse(Instant.EPOCH);
+        final long epochSecond = instant.getEpochSecond();
+
+        return Config.REDEEM_SCRIPT_HEX_KEY + "=" + hexStr + " " + Config.CREATION_TIME_KEY + "=" + epochSecond;
+    }
+
 
 
     public static byte[] extractPubKeyHashFromRedeemScript(Script redeemScript) {
+        checkRedeemScript(redeemScript);
+
         List<ScriptChunk> chunks = redeemScript.chunks();
 
         for (int i = 0; i < chunks.size() - 1; i++) {
@@ -82,6 +102,8 @@ public class CsvUtil {
 
 
     public static long extractCsvSequenceFromScript(Script redeemScript) {
+        checkRedeemScript(redeemScript);
+
         List<ScriptChunk> chunks = redeemScript.getChunks();
 
         for (int i = 0; i < chunks.size(); i++) {
@@ -112,5 +134,10 @@ public class CsvUtil {
 
 
 
+    private static void checkRedeemScript(Script redeemScript) {
+        if(redeemScript == null) {
+            throw new IllegalArgumentException("redeemScript cannot be null");
+        }
+    }
 
 }

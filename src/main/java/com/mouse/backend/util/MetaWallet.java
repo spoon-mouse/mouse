@@ -28,7 +28,7 @@ public record MetaWallet(Wallet wallet, String name, String id) {
         return wallet.getBalance().getValue();
     }
 
-    public String reciveAddress(){
+    public String receiveAddress(){
         return wallet.currentReceiveAddress().toString();
     }
 

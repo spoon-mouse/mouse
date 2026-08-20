@@ -354,9 +354,9 @@ public class Kit {
         final Wallet wallet = wallets.get(walletName);
 
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        CsvUtil scvUtil = new CsvUtil( ext.getRedeemScripts() );
+        CsvUtil scvUtil = new CsvUtil( ext );
 
-        return wallet.getUnspents().stream().map( o -> new Utxo(o.getParentTransactionHash().toString(), o.getIndex(), o.getScriptPubKey().getToAddress(NETWORK).toString(), scvUtil.isTxOutputCsvScript(o), scvUtil.getRelativeLock(o), o.getValue().value, o.getParentTransactionDepthInBlocks()) ).toList();
+        return wallet.getUnspents().stream().map(o -> new Utxo(o, scvUtil)).toList();
     }
 
 

@@ -37,12 +37,6 @@ import static com.mouse.backend.csv.CsvUtil.validateConfimationCsvSequenceNumber
 import static com.mouse.backend.util.Config.NETWORK;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
-/**
- * Pure backend transaction logic — no TextIO/TextTerminal imports anywhere in this
- * class. Anywhere a password or progress reporting is needed, it's supplied by the
- * caller via PasswordPrompt / InfoHook rather than this class
- * reaching into the UI layer itself.
- */
 public class TxnUtil {
 
     public static final int MIN_PEERS_CAST = 3;
@@ -109,7 +103,7 @@ public class TxnUtil {
         return TxnInfo.get(netBroadcast(tx, progress), wallet);
     }
 
-    public Transaction checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
+    public TxnInfo checkSeqVerifyTxn(AddressAmountFee addressAmountFee, long confimations, PasswordPrompt passwordPrompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
 
         final Address toAddress = wallet.parseAddress( addressAmountFee.address() );
         final Coin amount = Coin.ofSat( addressAmountFee.amount() );
@@ -152,7 +146,7 @@ public class TxnUtil {
 
         progress.event(Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+epochSecond);
 
-        return netBroadcast(tx, progress);
+        return TxnInfo.get( netBroadcast(tx, progress), wallet );
     }
 
 
