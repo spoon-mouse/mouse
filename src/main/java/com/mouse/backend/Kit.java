@@ -383,6 +383,15 @@ public class Kit {
         return wallet.currentReceiveAddress().toString();
     }
 
+    public static void saveIfAddressInKit(Address address, Script redeemScript, Script p2wshOutputScript) {
+
+        wallets.values().stream().filter(wallet -> wallet.isAddressMine(address)).forEach(wallet -> {
+            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+            ext.addRedeemScript(redeemScript);
+            wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
+        });
+    }
+
 
     public static TxnInfo sendStandardTxn(String walletName, String addressTxt, long amount, double feePerVbyte, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
         final Wallet wallet = getWallet(walletName);

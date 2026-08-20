@@ -2,7 +2,6 @@ package com.mouse.backend.csv;
 
 import com.mouse.backend.Kit;
 import com.mouse.backend.hook.InfoHook;
-import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.txn.IllegalAmountException;
 import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.*;
@@ -19,10 +18,7 @@ import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.*;
 
-import java.net.ConnectException;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -114,15 +110,6 @@ public class CsvTxn {
         return builder.build();
     }
 
-    private void saveRedeemWatchP2wshOutScript(Script redeemScript, Script p2wshOutputScript) {
-        //maybe we should save the redeem script even if we are sending to someone else, just as an extra copy?
-        if(wallet.isAddressMine(address)){
-            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-            ext.addRedeemScript(redeemScript);
-            wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
-        }
-    }
-
     private static void printRedeemScript(InfoHook progress, Script redeemScript) {
         String kvHexStr = CsvUtil.getRedeemScriptHexKV(redeemScript);
         progress.event(kvHexStr);
@@ -143,7 +130,7 @@ public class CsvTxn {
         tx = selectTxnInputs(sendRequest);
         tx = deEncryptWalletAndSignTx(tx, password);
 
-        saveRedeemWatchP2wshOutScript(redeemScript, p2wshOutputScript);
+        Kit.saveIfAddressInKit(address, redeemScript, p2wshOutputScript);
         printRedeemScript(progress, redeemScript);
 
         return TxnInfo.get( netBroadcast(tx, progress), wallet );
