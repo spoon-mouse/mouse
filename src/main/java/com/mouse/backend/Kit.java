@@ -439,9 +439,8 @@ public class Kit {
         }
 
         try {
-            progress.event("broadcast...");
             sendResult.getBroadcast().awaitSent().get(10, TimeUnit.SECONDS);
-            progress.event("cast");
+            progress.event("broadcast");
         } catch (InterruptedException | ExecutionException | TimeoutException e) { }
 
         return TxnInfo.get( sendResult.transaction(), wallet);
