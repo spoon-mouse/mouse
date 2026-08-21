@@ -40,8 +40,8 @@ public class Txn {
     protected Address address;
     protected Coin amount;
     private Coin feePerVkbCoin;
-    private Coin feePerVbyte;
-    private Coin estFee;
+    protected double feePerVbyteDouble;
+    protected Coin estFee;
     private CoinSelector coinSelector;
 
     public Txn(String name) {
@@ -91,8 +91,9 @@ public class Txn {
     }
 
     public Txn setFee(double feeVbyte){
+        feePerVbyteDouble = feeVbyte;
         estFee = Coin.ofSat((long)(feeVbyte * 141) );
-        feePerVkbCoin = Coin.ofSat( (long) (feeVbyte * 1000));
+        //feePerVkbCoin = Coin.ofSat( (long) (feeVbyte * 1000));
         return this;
     }
 
