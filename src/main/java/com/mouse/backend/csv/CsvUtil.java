@@ -37,6 +37,9 @@ public class CsvUtil {
 
     public long getRelativeLock(TransactionOutput output) {
         Script redeemScript = getRedeemScript(output);
+        if(redeemScript == null) {
+            return -1;
+        }
         return extractCsvSequenceFromScript(redeemScript);
     }
 

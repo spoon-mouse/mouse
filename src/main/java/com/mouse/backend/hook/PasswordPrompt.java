@@ -7,5 +7,5 @@ package com.mouse.backend.hook;
  */
 @FunctionalInterface
 public interface PasswordPrompt {
-    CharSequence getPassword();
+    char[] getPassword();
 }

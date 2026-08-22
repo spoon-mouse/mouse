@@ -1,6 +1,7 @@
 package com.mouse.backend.txn;
 
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.hook.PasswordPrompt;
 import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.wallet.SendRequest;
@@ -15,13 +16,13 @@ public class StdTxn extends Txn{
         super(walletName);
     }
 
-    public TxnInfo send(char[] password, InfoHook progress) throws Wallet.DustySendRequested, IllegalAmountException, InsufficientMoneyException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, IllegalAmountException, InsufficientMoneyException {
 
         SendRequest sendRequest = SendRequest.to(address, amount);
         checkDustySendRequest(sendRequest);
 
         Transaction tx = selectTxnInputs(sendRequest);
-        tx = deEncryptWalletAndSignTx(tx, password);
+        tx = deEncryptWalletAndSignTx(tx, prompt);
 
         long realizedFee = Math.round(tx.getVsize() *  feePerVbyteDouble);
         long diff = realizedFee - estFee.value;

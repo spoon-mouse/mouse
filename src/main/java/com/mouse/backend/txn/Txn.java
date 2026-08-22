@@ -56,7 +56,7 @@ public class Txn {
     }
 
     public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
-        return null;
+        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void setCoinSelector(CoinSelectOption option) {
@@ -210,12 +210,14 @@ public class Txn {
         return tx;
     }
 
-    public Transaction deEncryptWalletAndSignTx(Transaction txn, char[] password) throws Wallet.BadWalletEncryptionKeyException {
+    public Transaction deEncryptWalletAndSignTx(Transaction txn, PasswordPrompt prompt) throws Wallet.BadWalletEncryptionKeyException {
 
-        final boolean walletEncrypted_at_start = wallet.isEncrypted();
-        CharArrayCharSequence passwordSeq = new CharArrayCharSequence(password);
+        CharArrayCharSequence passwordSeq=null;
+        if(wallet.isEncrypted()){
+            passwordSeq = CharArrayCharSequence.of(prompt.getPassword());
+        }
         try {
-            if(walletEncrypted_at_start) {
+            if(wallet.isEncrypted()) {
                 try {
                     wallet.decrypt(passwordSeq);
                 }catch (Wallet.BadWalletEncryptionKeyException e){
@@ -224,15 +226,15 @@ public class Txn {
             }
             txn =  signTransaction(txn);
 
-            if(!wallet.isEncrypted() && walletEncrypted_at_start){
+            if( ! wallet.isEncrypted() && passwordSeq!=null){
                 wallet.encrypt(passwordSeq);
             }
             return txn;
         }finally {
-            if(!wallet.isEncrypted() && walletEncrypted_at_start){
+            if( ! wallet.isEncrypted() && passwordSeq!=null){
                 wallet.encrypt(passwordSeq);
+                passwordSeq.wipe();
             }
-            passwordSeq.wipe();
         }
     }
 }

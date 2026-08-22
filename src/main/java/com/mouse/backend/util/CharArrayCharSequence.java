@@ -5,6 +5,10 @@ import java.util.Arrays;
 public final class CharArrayCharSequence implements CharSequence {
     private final char[] chars;
 
+    public static CharArrayCharSequence of(char[] chars){
+        return new CharArrayCharSequence(chars);
+    }
+
     public CharArrayCharSequence(char[] chars) {
         this.chars = chars;
     }

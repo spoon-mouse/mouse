@@ -1,6 +1,7 @@
 package com.mouse.backend.txn;
 
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.hook.PasswordPrompt;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.InsufficientMoneyException;
@@ -21,7 +22,7 @@ public class RbfTxn extends Txn{
         super(walletName);
     }
 
-    public TxnInfo send(char[] password, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
 
         Sha256Hash id = Sha256Hash.wrap(txnId);
         Transaction tx = wallet.getTransaction(id);
@@ -65,7 +66,7 @@ public class RbfTxn extends Txn{
         }
 
         tx.replaceOutput(oldChangeOutput.getIndex(), newChangeOutput);
-        deEncryptWalletAndSignTx(tx, password);
+        deEncryptWalletAndSignTx(tx, prompt);
         tx = broadcastTx(tx, progress);
 
         return TxnInfo.get(tx, wallet);

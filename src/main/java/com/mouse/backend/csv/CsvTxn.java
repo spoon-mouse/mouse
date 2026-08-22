@@ -2,6 +2,7 @@ package com.mouse.backend.csv;
 
 import com.mouse.backend.Kit;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.txn.IllegalAmountException;
 import com.mouse.backend.txn.Txn;
 import com.mouse.backend.txn.TxnInfo;
@@ -50,7 +51,7 @@ public class CsvTxn extends Txn {
         progress.event(kvHexStr);
     }
 
-    public TxnInfo send(char[] password, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
 
         Script redeemScript = createRedeemScript();
         Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
@@ -61,7 +62,7 @@ public class CsvTxn extends Txn {
 
         SendRequest sendRequest = SendRequest.forTx(tx);
         tx = selectTxnInputs(sendRequest);
-        tx = deEncryptWalletAndSignTx(tx, password);
+        tx = deEncryptWalletAndSignTx(tx, prompt);
 
         Kit.saveIfAddressInKit(address, redeemScript, p2wshOutputScript);
         printRedeemScript(progress, redeemScript);
