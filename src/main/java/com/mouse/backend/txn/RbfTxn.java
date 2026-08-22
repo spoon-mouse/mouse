@@ -8,12 +8,16 @@ import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionConfidence;
 import org.bitcoinj.core.TransactionOutput;
+import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+
+import static org.bitcoinj.core.TransactionConfidence.ConfidenceType.IN_CONFLICT;
+import static org.bitcoinj.core.TransactionConfidence.ConfidenceType.PENDING;
 
 
 public class RbfTxn extends Txn{
@@ -23,14 +27,34 @@ public class RbfTxn extends Txn{
         super(walletName);
     }
 
+
+
     public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
+        Sha256Hash id = Sha256Hash.wrap(txnId);
+        Transaction orignalTx = wallet.getTransaction(id);
+
+        final SendRequest sendRequest = SendRequest.forTx(orignalTx);
+
+        Coin coinFeePerkvb = Coin.ofSat(Math.round(feePerVbyteDouble * 1000));
+        sendRequest.setFeePerVkb(coinFeePerkvb);
+
+        final Wallet.SendResult sendResult = wallet.sendCoins(sendRequest);
+
+        return TxnInfo.get(sendResult.transaction(), wallet);
+    }
+
+
+    public TxnInfo send2(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
 
         Sha256Hash id = Sha256Hash.wrap(txnId);
         Transaction orignalTx = wallet.getTransaction(id);
+        log.info("RbfTxn:  OriginalTx={}", orignalTx);
+
         long oldFee = orignalTx.getFee().value;
 
         byte[] rawBytes = orignalTx.serialize();
         Transaction txCopy = Transaction.read(ByteBuffer.wrap(rawBytes));
+        log.info("RbfTxn:  txCopy={}", txCopy);
         long newFee = Math.round(txCopy.getVsize() *  feePerVbyteDouble);
 
         if( !txCopy.isOptInFullRBF() ){
@@ -38,7 +62,9 @@ public class RbfTxn extends Txn{
         }
 
         TxnInfo txInfo = TxnInfo.get(txCopy, wallet);
-        if( false == (txInfo.isSend() && txCopy.getConfidence().getConfidenceType() == TransactionConfidence.ConfidenceType.PENDING) ){
+        final TransactionConfidence.ConfidenceType confidenceType = txCopy.getConfidence().getConfidenceType();
+
+        if(!(txInfo.isSend() && (confidenceType == PENDING || confidenceType == IN_CONFLICT))){
             throw new IllegalArgumentException("expected state sent pending");
         }
 
@@ -59,10 +85,23 @@ public class RbfTxn extends Txn{
 
 
         TransactionOutput oldChangeOutput = myOutputs.get(0);
-        Coin oldChange = oldChangeOutput.getValue();
+        log.info("RbfTxn: oldChange output={}", oldChangeOutput);
 
-        Coin newChange = oldChange.subtract(feeDelta);
+        Coin oldChangeValue = oldChangeOutput.getValue();
+        log.info("RbfTxn: oldChange value={}", oldChangeValue);
+
+
+        Coin newChange = oldChangeValue.subtract(feeDelta);
+        log.info("RbfTxn: newChange ={}", newChange);
+
         TransactionOutput newChangeOutput = oldChangeOutput.withValue(newChange);
+        log.info("RbfTxn: newChange output={}", newChangeOutput);
+
+        Coin newChangeValue = newChangeOutput.getValue();
+        log.info("RbfTxn: newChange value={}", newChangeValue);
+
+        final Coin changeDelta = oldChangeValue.subtract(newChangeValue);
+        log.info("RbfTxn: changeDelta={}", changeDelta);
 
 
         if(newChange.isNegative()) {
@@ -73,8 +112,14 @@ public class RbfTxn extends Txn{
         }
 
         txCopy.replaceOutput(oldChangeOutput.getIndex(), newChangeOutput);
-        deEncryptWalletAndSignTx(txCopy, prompt);
-        txCopy = broadcastTx(txCopy, progress);
+
+
+        log.info("RbfTxn: final txCopy fee={}", txCopy.getFee());
+        log.info("RbfTxn: final txCopy={}", txCopy);
+
+
+        //deEncryptWalletAndSignTx(txCopy, prompt);
+        //txCopy = broadcastTx(txCopy, progress);
 
         return TxnInfo.get(txCopy, wallet);
     }
