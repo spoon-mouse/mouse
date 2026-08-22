@@ -4,8 +4,8 @@ import com.mouse.backend.Kit;
 import com.mouse.backend.csv.CsvAwareCoinSelector;
 import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
-import com.mouse.backend.csv.CsvTxn;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.util.CharArrayCharSequence;
 import com.mouse.backend.util.CoinSelectOption;
 import com.mouse.backend.util.ManualCoinSelector;
@@ -42,6 +42,10 @@ public class Txn {
     private Coin feePerVkbCoin;
     protected double feePerVbyteDouble;
     protected Coin estFee;
+
+    protected String txnId;
+
+
     private CoinSelector coinSelector;
 
     public Txn(String name) {
@@ -51,7 +55,7 @@ public class Txn {
         setCoinSelector(CoinSelectOption.DEFAULT);
     }
 
-    public TxnInfo send(char[] password, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
         return null;
     }
 
@@ -71,6 +75,11 @@ public class Txn {
         if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
             throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
         }
+    }
+
+    public Txn setTxnId(String id) {
+        txnId = id;
+        return this;
     }
 
     public Txn setAddress(String addressTxt) throws AddressFormatException {
@@ -189,7 +198,7 @@ public class Txn {
         return txn;
     }
 
-    public Transaction netBroadcast(Transaction tx, InfoHook progress) {
+    public Transaction broadcastTx(Transaction tx, InfoHook progress) {
         wallet.maybeCommitTx(tx);
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);

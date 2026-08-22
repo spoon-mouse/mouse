@@ -96,8 +96,14 @@ public class Kit {
                 try {
                     loadOrCreateWallet(walletName);
                 } catch (UnreadableWalletException | IOException e) {
-                    e.printStackTrace();
-                    log.error("loading wallet " + walletName + " failed: " + e.getMessage());
+                    log.error(Kit.class.getName(), "loading wallet " + walletName + " failed: ", e);
+
+                    try {
+                        deleteWallet(walletName);
+                        log.error(Kit.class.getName(), "deleted UnreadableWalletE xception wallet causing issues: " + walletName);
+                    } catch (IOException ex) {
+                        log.error(Kit.class.getName(), "Error occurred while deleting a UnreadableWallet in Kit.start() wallet: " + walletName, ex);
+                    }
                 }
             });
 
@@ -105,14 +111,14 @@ public class Kit {
             peerGroup.startBlockChainDownload(new DownloadProgressTracker() {
                 @Override
                 protected void doneDownload() {
-                    log.info("Chain Sync complete");
+                    log.info(Kit.class.getName(), "Chain Sync complete");
                     // your code here: update UI, enable send button, etc.
                 }
             });
 
 
         }catch (IOException | BlockStoreException e) {
-            e.printStackTrace();
+            log.error(Kit.class.getName(), "Error occurred while starting the node: ", e);
         }
 
     }
@@ -177,6 +183,7 @@ public class Kit {
     public static Wallet wallet(String walletName) {
         Wallet wallet = wallets.get(walletName);
         if (wallet == null) {
+            log.info(Kit.class.getName(), "Wallet not loaded: " + walletName);
             throw new IllegalStateException("Wallet not loaded: " + walletName);
         }
         return wallet;
@@ -280,7 +287,7 @@ public class Kit {
 
         } catch (Exception e) {
             e.printStackTrace();
-            log.error("Error occurred while restoring wallet: "+walletName+" "+ e.getMessage());
+            log.error(Kit.class.getName(), "Error occurred while restoring wallet: "+walletName, e);
         }
     }
 
@@ -294,7 +301,7 @@ public class Kit {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             wallets.get(walletName).saveToFile(walletFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error(Kit.class.getName(), "Error occurred while saving wallet: "+walletName, e);
             throw new RuntimeException(e);
         }
     }
@@ -325,7 +332,6 @@ public class Kit {
     }
 
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
-        log.info("", kvStringProgHexCreationTime);
 
         final Wallet wallet = wallets.get(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
@@ -336,7 +342,7 @@ public class Kit {
 
         wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
 
-        log.info("add watched script: "+redeemScript);
+        log.info(Kit.class.getName(), "add watched script: {}", redeemScript);
     }
 
     public static void viewRedeemScripts(String walletName, InfoHook react) {
@@ -372,8 +378,12 @@ public class Kit {
     }
 
 
+    public static TxnInfo getTxn(String walletName, String id) {
+        return getTxns(walletName).stream().filter(txn -> txn.id().equals(id)).findFirst().orElse(null);
+    }
+
     public static List<TxnInfo> getTxns(String walletName) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         return wallet.getTransactionsByTime().stream().map(txn -> TxnInfo.get(txn, wallet)).toList();
     }
 
@@ -462,7 +472,6 @@ public class Kit {
             progress.event("broadcast txn:"+sent.length+" connections:"+peerGroup().numConnectedPeers());
         }catch (Exception e){
             progress.event("broadcast timeout");
-            log.error("Error occurred while waiting for transactions to be sent", e);
         }
 
         //not much point waiting for relayed

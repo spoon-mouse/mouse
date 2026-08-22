@@ -30,7 +30,7 @@ public class StdTxn extends Txn{
 
         log.info("Realized fee: {}, Estimated fee: {}, Difference: {}", realizedFee, estFee.value, diff);
 
-        return TxnInfo.get(netBroadcast(tx, progress), wallet);
+        return TxnInfo.get(broadcastTx(tx, progress), wallet);
     }
 
 }
