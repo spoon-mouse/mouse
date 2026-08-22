@@ -14,7 +14,7 @@ import java.nio.file.Path;
 public class Config {
 
 
-    public static final double MIN_FEE=0.1;
+    public static final double MIN_FEE=0.01;
     public static final double MAX_FEE=100.0;
     public static final double DEFAULT_FEE = 1.0;
 
