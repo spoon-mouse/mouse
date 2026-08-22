@@ -12,6 +12,7 @@ import org.bitcoinj.wallet.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 
@@ -25,31 +26,37 @@ public class RbfTxn extends Txn{
     public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
 
         Sha256Hash id = Sha256Hash.wrap(txnId);
-        Transaction tx = wallet.getTransaction(id);
-        TxnInfo txInfo = TxnInfo.get(tx, wallet);
+        Transaction orignalTx = wallet.getTransaction(id);
+        long oldFee = orignalTx.getFee().value;
 
-        if( !tx.isOptInFullRBF() ){
+        byte[] rawBytes = orignalTx.serialize();
+        Transaction txCopy = Transaction.read(ByteBuffer.wrap(rawBytes));
+        long newFee = Math.round(txCopy.getVsize() *  feePerVbyteDouble);
+
+        if( !txCopy.isOptInFullRBF() ){
             throw new IllegalArgumentException("txn RBF not supported");
         }
 
-        if( false == (txInfo.isSend() && tx.getConfidence().getConfidenceType() == TransactionConfidence.ConfidenceType.PENDING) ){
+        TxnInfo txInfo = TxnInfo.get(txCopy, wallet);
+        if( false == (txInfo.isSend() && txCopy.getConfidence().getConfidenceType() == TransactionConfidence.ConfidenceType.PENDING) ){
             throw new IllegalArgumentException("expected state sent pending");
         }
 
-        long newFee = Math.round(tx.getVsize() *  feePerVbyteDouble);
-        long oldFee = tx.getFee().value;
         if(newFee <= oldFee){
             throw new IllegalArgumentException("Fee new "+newFee+" <= old "+ oldFee);
         }
         Coin feeDelta = Coin.ofSat(newFee - oldFee);
+        log.info("RbfTxn: newFee={}, oldFee={}, feeDelta={}", newFee, oldFee, feeDelta);
 
-        List<TransactionOutput> myOutputs = tx.getOutputs().stream().filter(o -> o.isMine(wallet)).toList();
+
+        List<TransactionOutput> myOutputs = txCopy.getOutputs().stream().filter(o -> o.isMine(wallet)).toList();
         if(myOutputs.size() == 0){
             throw new IllegalStateException("tx no outputs !");
         }
         if(myOutputs.size() > 1){
             throw new IllegalStateException("more that 1 output to this wallet which is change ?");
         }
+
 
         TransactionOutput oldChangeOutput = myOutputs.get(0);
         Coin oldChange = oldChangeOutput.getValue();
@@ -65,11 +72,11 @@ public class RbfTxn extends Txn{
             throw new InsufficientMoneyException(newChange);
         }
 
-        tx.replaceOutput(oldChangeOutput.getIndex(), newChangeOutput);
-        deEncryptWalletAndSignTx(tx, prompt);
-        tx = broadcastTx(tx, progress);
+        txCopy.replaceOutput(oldChangeOutput.getIndex(), newChangeOutput);
+        deEncryptWalletAndSignTx(txCopy, prompt);
+        txCopy = broadcastTx(txCopy, progress);
 
-        return TxnInfo.get(tx, wallet);
+        return TxnInfo.get(txCopy, wallet);
     }
 
 
