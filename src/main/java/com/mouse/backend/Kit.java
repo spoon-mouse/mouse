@@ -123,6 +123,33 @@ public class Kit {
 
     }
 
+    public static synchronized Wallet reName(String walletName, String newName) {
+        final Wallet wallet = getWallet(walletName);
+        File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
+        if (newWalletFile.exists() || wallets.containsKey(newName)) {
+            throw new IllegalArgumentException("Wallet with name " + newName + " already exists");
+        }
+        Wallet newWallet = null;
+        try {
+            wallet.saveToFile(newWalletFile);
+            try {
+                newWallet = loadOrCreateWallet(newName);
+                try {
+                    deleteWallet(walletName);
+                } catch (Exception e) {
+                    log.error(Kit.class.getName(), "Error occurred while deleting old wallet file: " + walletName, e);
+                    throw new RuntimeException("Failed to remove old wallet: " + walletName, e);
+                }
+            }catch (Exception e) {
+                log.error(Kit.class.getName(), "Error occurred while loading new wallet: " + newName, e);
+                throw new RuntimeException("Failed to load new wallet: " + newName, e);
+            }
+        } catch (IOException e) {
+            log.error(Kit.class.getName(), "Error occurred while renaming wallet: " + walletName, e);
+            throw new RuntimeException("Failed to rename wallet: " + walletName, e);
+        }
+        return newWallet;
+    }
 
 
     /**

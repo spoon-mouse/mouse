@@ -29,7 +29,7 @@ public class RbfTxn extends Txn{
 
 
 
-    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
+    public TxnInfo send3(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
         Sha256Hash id = Sha256Hash.wrap(txnId);
         Transaction orignalTx = wallet.getTransaction(id);
 
@@ -44,7 +44,7 @@ public class RbfTxn extends Txn{
     }
 
 
-    public TxnInfo send2(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws Wallet.DustySendRequested, InsufficientMoneyException {
 
         Sha256Hash id = Sha256Hash.wrap(txnId);
         Transaction orignalTx = wallet.getTransaction(id);
