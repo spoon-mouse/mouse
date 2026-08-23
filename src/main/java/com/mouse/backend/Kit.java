@@ -366,7 +366,7 @@ public class Kit {
             wallet.saveToFile(walletFile);
             log.info("saved: {}", walletName+ Instant.now());
 
-            peerGroup.stop();
+            peerGroup.stopAsync();
             blockStore.close();
 
             log.info("peerG blockS stoped: {}", walletName+ Instant.now());
