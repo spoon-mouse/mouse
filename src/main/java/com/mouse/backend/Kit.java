@@ -258,6 +258,7 @@ public class Kit {
             }
         }
 
+        /*
         peerGroup.stop();
 
         try {
@@ -265,7 +266,7 @@ public class Kit {
         } catch (BlockStoreException e) {
             throw new RuntimeException(e);
         }
-
+        */
         instance = null;
     }
 
@@ -364,8 +365,10 @@ public class Kit {
 
             wallet.saveToFile(walletFile);
             log.info("saved: {}", walletName+ Instant.now());
+
             peerGroup.stop();
             blockStore.close();
+
             log.info("peerG blockS stoped: {}", walletName+ Instant.now());
 
             log.info("adding to kit {}", walletName+ Instant.now());
@@ -375,6 +378,7 @@ public class Kit {
 
         } catch (Exception e) {
             log.error(Kit.class.getName(), "Error occurred while restoring wallet: "+walletName, e);
+            progress.event("Error occurred while restoring wallet: "+walletName+" "+e.getMessage());
         }
     }
 
