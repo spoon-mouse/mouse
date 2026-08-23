@@ -274,19 +274,19 @@ public class Kit {
         long epochSeconds = getWalletCreationTime(walletName);
 
         String newName = walletName + "_NEW";
-        String oldName = walletName + "_OLD";
 
         restore_from_seed(newName, seed, epochSeconds,  progress);
         progress.event("Restored wallet: " + newName);
 
-        reName(walletName, oldName);
-        progress.event("reName(" + walletName + ", " + oldName + ")");
+        //String oldName = walletName + "_OLD";
+        //reName(walletName, oldName);
+        //progress.event("reName(" + walletName + ", " + oldName + ")");
 
-        reName(newName, walletName);
-        progress.event("reName(" + newName + ", " + walletName + ")");
+        //reName(newName, walletName);
+        //progress.event("reName(" + newName + ", " + walletName + ")");
 
-        deleteWallet(oldName);
-        progress.event("deleted wallet: " + oldName);
+        //deleteWallet(oldName);
+        //progress.event("deleted wallet: " + oldName);
     }
 
     public static synchronized long getWalletCreationTime(String walletName){
@@ -321,9 +321,9 @@ public class Kit {
     }
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
-
-        if (wallets.containsKey(walletName)) {
-            throw new IllegalArgumentException("Wallet already exists: " + walletName);
+        File walletFile    = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+        if (walletFile.exists() || wallets.containsKey(walletName)) {
+            throw new IllegalArgumentException("Wallet with name " + walletName + " already exists");
         }
 
         DeterministicSeed seed;
@@ -346,22 +346,30 @@ public class Kit {
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
+            peerGroup.start();
+
+            peerGroup.waitForPeers(2).get();
             peerGroup.addConnectedEventListener((peer, connected) -> {
                 progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
             });
 
-            peerGroup.start();
             DownloadTracker listener = new DownloadTracker(progress);
             peerGroup.startBlockChainDownload(listener);
             listener.await();
+            log.info("Wallet restored: {}", walletName+ Instant.now());
 
-            File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+            log.info("saving: {}", walletName+ Instant.now());
 
             wallet.saveToFile(walletFile);
+            log.info("saved: {}", walletName+ Instant.now());
             peerGroup.stop();
             blockStore.close();
+            log.info("peerG blockS stoped: {}", walletName+ Instant.now());
 
+            log.info("adding to kit {}", walletName+ Instant.now());
+            //wallets.put(walletName, wallet);
             loadOrCreateWallet(walletName);
+            log.info("done ", walletName+ Instant.now());
 
         } catch (Exception e) {
             log.error(Kit.class.getName(), "Error occurred while restoring wallet: "+walletName, e);
