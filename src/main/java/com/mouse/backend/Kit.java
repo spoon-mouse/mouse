@@ -4,6 +4,7 @@ import com.mouse.backend.csv.CsvP2WshSigner;
 import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.txn.IllegalAmountException;
 import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.*;
@@ -123,7 +124,7 @@ public class Kit {
 
     }
 
-    public static synchronized Wallet reName(String walletName, String newName) {
+    public static synchronized Wallet reName(String walletName, String newName) throws UnreadableWalletException, IOException {
         final Wallet wallet = getWallet(walletName);
         File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
         if (newWalletFile.exists() || wallets.containsKey(newName)) {
@@ -136,17 +137,20 @@ public class Kit {
                 newWallet = loadOrCreateWallet(newName);
                 try {
                     deleteWallet(walletName);
-                } catch (Exception e) {
+                } catch (IOException e) {
                     log.error(Kit.class.getName(), "Error occurred while deleting old wallet file: " + walletName, e);
-                    throw new RuntimeException("Failed to remove old wallet: " + walletName, e);
+                    throw new IOException("Failed to remove old wallet: " + walletName, e);
                 }
-            }catch (Exception e) {
+            }catch (IOException e) {
                 log.error(Kit.class.getName(), "Error occurred while loading new wallet: " + newName, e);
-                throw new RuntimeException("Failed to load new wallet: " + newName, e);
+                throw new IOException("Failed to load new wallet: " + newName, e);
+            } catch (UnreadableWalletException e) {
+                log.error(Kit.class.getName(), "Error occurred while loading new wallet: " + newName, e);
+                throw new UnreadableWalletException(e.getMessage());
             }
         } catch (IOException e) {
-            log.error(Kit.class.getName(), "Error occurred while renaming wallet: " + walletName, e);
-            throw new RuntimeException("Failed to rename wallet: " + walletName, e);
+            log.error(Kit.class.getName(), "Error occurred while saving new wallet: " + newName, e);
+            throw new IOException("Failed to save new wallet: " + newName, e);
         }
         return newWallet;
     }
@@ -159,7 +163,7 @@ public class Kit {
      */
     public static synchronized Wallet loadOrCreateWallet(String walletName) throws UnreadableWalletException, IOException {
         if (wallets.containsKey(walletName)) {
-            return wallets.get(walletName);
+            return getWallet(walletName);
         }
 
         File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
@@ -265,6 +269,56 @@ public class Kit {
         instance = null;
     }
 
+    public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException {
+        String seed = getWalletSeed(walletName, prompt);
+        long epochSeconds = getWalletCreationTime(walletName);
+
+        String newName = walletName + "_NEW";
+        String oldName = walletName + "_OLD";
+
+        restore_from_seed(newName, seed, epochSeconds,  progress);
+        progress.event("Restored wallet: " + newName);
+
+        reName(walletName, oldName);
+        progress.event("reName(" + walletName + ", " + oldName + ")");
+
+        reName(newName, walletName);
+        progress.event("reName(" + newName + ", " + walletName + ")");
+
+        deleteWallet(oldName);
+        progress.event("deleted wallet: " + oldName);
+    }
+
+    public static synchronized long getWalletCreationTime(String walletName){
+        final Wallet wallet = getWallet(walletName);
+        final Optional<Instant> creationTime = wallet.getKeyChainSeed().getCreationTime();
+        if(creationTime.isPresent()) {
+            return creationTime.get().getEpochSecond();
+        }
+        return 0;
+    }
+
+    public static synchronized String getWalletSeed(String walletName, PasswordPrompt prompt) {
+        final Wallet wallet = getWallet(walletName);
+        String seed="";
+        CharArrayCharSequence password=null;
+        if(wallet.isEncrypted()){
+            password = CharArrayCharSequence.of(prompt.getPassword());
+        }
+        try {
+            if(wallet.isEncrypted()){
+                wallet.decrypt(password);
+            }
+            seed =  wallet.getKeyChainSeed().getMnemonicString();
+
+        }catch (Wallet.BadWalletEncryptionKeyException e){
+        }finally {
+            if( ! wallet.isEncrypted() && password!=null){
+                wallet.encrypt(password);
+            }
+        }
+        return seed;
+    }
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
 
@@ -292,28 +346,24 @@ public class Kit {
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
-
-            DownloadTracker listener = new DownloadTracker(progress);
-            peerGroup.start();
-            peerGroup.startBlockChainDownload(listener);
-
             peerGroup.addConnectedEventListener((peer, connected) -> {
                 progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
             });
 
+            peerGroup.start();
+            DownloadTracker listener = new DownloadTracker(progress);
+            peerGroup.startBlockChainDownload(listener);
             listener.await();
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+
             wallet.saveToFile(walletFile);
-            wallet.autosaveToFile(walletFile, autosaveDuration, null);
-
-            Kit.wallets.put(walletName, wallet);
-
             peerGroup.stop();
             blockStore.close();
 
+            loadOrCreateWallet(walletName);
+
         } catch (Exception e) {
-            e.printStackTrace();
             log.error(Kit.class.getName(), "Error occurred while restoring wallet: "+walletName, e);
         }
     }
@@ -326,7 +376,7 @@ public class Kit {
     private static synchronized void save(String walletName) {
         try {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-            wallets.get(walletName).saveToFile(walletFile);
+            getWallet(walletName).saveToFile(walletFile);
         } catch (IOException e) {
             log.error(Kit.class.getName(), "Error occurred while saving wallet: "+walletName, e);
             throw new RuntimeException(e);
@@ -360,7 +410,7 @@ public class Kit {
 
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
 
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         final Script redeemScript = ext.addRedeemScript(kvStringProgHexCreationTime);
 
@@ -373,13 +423,13 @@ public class Kit {
     }
 
     public static void viewRedeemScripts(String walletName, InfoHook react) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         ext.getRedeemScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
     public static void viewWatchedScripts(String walletName, InfoHook react) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         wallet.getWatchedScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
@@ -396,7 +446,7 @@ public class Kit {
     }
 
     public static List<Utxo> utxos(String walletName) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
 
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         CsvUtil scvUtil = new CsvUtil( ext );
@@ -416,7 +466,7 @@ public class Kit {
 
 
     public static String getCurrentReceiveAddress(String walletName) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         return wallet.currentReceiveAddress().toString();
     }
 
@@ -484,12 +534,12 @@ public class Kit {
     }
 
     public static List<String> getIssuedReceiveAddresses(String walletName) {
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
         return wallet.getIssuedReceiveAddresses().stream().map(Address::toString).toList();
     }
 
     public static void reCast(String walletName, InfoHook progress){
-        final Wallet wallet = wallets.get(walletName);
+        final Wallet wallet = getWallet(walletName);
 
         List<TransactionBroadcast> casts = wallet.getPendingTransactions().stream().map(tx -> Kit.peerGroup().broadcastTransaction(tx, MIN_PEERS_TO_CAST_TXN, false)).toList();
 
@@ -562,7 +612,7 @@ public class Kit {
     }
 
     public static void btcSent(String walletName, InfoHook progress){
-        wallets.get(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
+        getWallet(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
             TxnInfo txnInfo = TxnInfo.get(txn, wallet);
             progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.amount()+" + fee: "+txnInfo.fee());
         });
@@ -574,7 +624,7 @@ public class Kit {
     }
 
     public static void btcReceived(String walletName, InfoHook progress){
-        wallets.get(walletName).addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
+        getWallet(walletName).addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
             TxnInfo txnInfo = TxnInfo.get(txn, wallet);
             if(txnInfo.isNotChange()){
                 progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.value());
