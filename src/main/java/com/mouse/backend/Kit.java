@@ -258,15 +258,15 @@ public class Kit {
             }
         }
 
-        /*
-        peerGroup.stop();
+
+        peerGroup.stopAsync();
 
         try {
             blockStore.close();
         } catch (BlockStoreException e) {
             throw new RuntimeException(e);
         }
-        */
+
         instance = null;
     }
 
