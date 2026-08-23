@@ -272,21 +272,20 @@ public class Kit {
     public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException {
         String seed = getWalletSeed(walletName, prompt);
         long epochSeconds = getWalletCreationTime(walletName);
-
         String newName = walletName + "_NEW";
+        String oldName = walletName + "_OLD";
 
         restore_from_seed(newName, seed, epochSeconds,  progress);
         progress.event("Restored wallet: " + newName);
 
-        //String oldName = walletName + "_OLD";
-        //reName(walletName, oldName);
-        //progress.event("reName(" + walletName + ", " + oldName + ")");
+        reName(walletName, oldName);
+        progress.event("reName(" + walletName + ", " + oldName + ")");
 
-        //reName(newName, walletName);
-        //progress.event("reName(" + newName + ", " + walletName + ")");
+        reName(newName, walletName);
+        progress.event("reName(" + newName + ", " + walletName + ")");
 
-        //deleteWallet(oldName);
-        //progress.event("deleted wallet: " + oldName);
+        deleteWallet(oldName);
+        progress.event("deleted wallet: " + oldName);
     }
 
     public static synchronized long getWalletCreationTime(String walletName){
@@ -346,9 +345,12 @@ public class Kit {
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
+
+            peerGroup.setMinRequiredProtocolVersion(70016);
+
+            log.info("ProtocolVersion.CURRENT.intValue() {}", ProtocolVersion.CURRENT.intValue());
             peerGroup.start();
 
-            peerGroup.waitForPeers(2).get();
             peerGroup.addConnectedEventListener((peer, connected) -> {
                 progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
             });
