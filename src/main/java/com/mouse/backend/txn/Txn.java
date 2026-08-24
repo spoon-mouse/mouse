@@ -21,6 +21,7 @@ import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.*;
 
+import java.io.IOException;
 import java.net.ConnectException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -55,7 +56,7 @@ public class Txn {
         setCoinSelector(CoinSelectOption.DEFAULT);
     }
 
-    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException, IOException {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 

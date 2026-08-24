@@ -12,6 +12,7 @@ import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
 import org.bitcoinj.wallet.*;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.ExecutionException;
 
@@ -51,7 +52,7 @@ public class CsvTxn extends Txn {
         progress.event(kvHexStr);
     }
 
-    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException {
+    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException, IOException {
 
         Script redeemScript = createRedeemScript();
         Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
@@ -64,6 +65,7 @@ public class CsvTxn extends Txn {
         tx = selectTxnInputs(sendRequest);
         tx = deEncryptWalletAndSignTx(tx, prompt);
 
+        //save before send
         Kit.saveIfAddressInKit(address, redeemScript, p2wshOutputScript);
         printRedeemScript(progress, redeemScript);
 

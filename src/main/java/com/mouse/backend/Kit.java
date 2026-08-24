@@ -50,6 +50,8 @@ import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
  */
 public class Kit {
 
+    private static AppendOnlyMultiMapStore checkSeqVerRepo;
+
     private static Logger log = LoggerFactory.getLogger(Kit.class);
 
     private static Kit instance;
@@ -77,6 +79,12 @@ public class Kit {
 
         if (instance != null) {
             return;
+        }
+
+        try {
+            checkSeqVerRepo = new AppendOnlyMultiMapStore("csvRepo.log");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         WALLET_DIR_PATH = filePathbase.toPath();
@@ -337,6 +345,14 @@ public class Kit {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
             wallet.clearTransactions(0);
 
+
+            CsvScriptExtension csv = new CsvScriptExtension();
+            wallet.addExtension(csv);
+            checkSeqVerRepo.restoreRedeemScripts(wallet, csv);
+            attachCsvSupport(wallet, csv);
+
+
+
             final Path f = WALLET_DIR_PATH.resolve("restore" + SPVCHAIN_FILE_POST_FIX);
             Files.deleteIfExists(f);
 
@@ -481,18 +497,15 @@ public class Kit {
         return wallet.currentReceiveAddress().toString();
     }
 
-    public static void saveIfAddressInKit(Address address, Script redeemScript, Script p2wshOutputScript) {
+    public static void saveIfAddressInKit(Address address, Script redeemScript, Script p2wshOutputScript) throws IOException {
         wallets.values().stream().filter(wallet -> wallet.isAddressMine(address)).forEach(wallet -> {
             CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
             ext.addRedeemScript(redeemScript);
             wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
         });
 
-        boolean found = wallets.values().stream().filter(w -> w.isAddressMine(address) ).findFirst().isPresent();
-        if(!found) {
-            // Handle the case where the address is not found in any wallet
-            // May show a QR of "address="+address+" "+getRedeemScriptHexKV(redeemScript)
-        }
+        String kvHexStr = CsvUtil.getRedeemScriptHexKV(redeemScript);
+        checkSeqVerRepo.put(address.toString(), kvHexStr);
     }
 
 
