@@ -446,6 +446,12 @@ public class Kit {
     public static void addRedeemScriptByAddress(String address, String kvStringProgHexCreationTime) {
         getMetaWalletByAddress(address).forEach(metaWallet -> addRedeemScript(metaWallet.name(), kvStringProgHexCreationTime));
     }
+    public static void restoreRedeemScripts(String walletName) {
+        final Wallet wallet = getWallet(walletName);
+        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+        checkSeqVerRepo.restoreRedeemScripts(wallet, ext);
+    }
+
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
 
         final Wallet wallet = getWallet(walletName);
