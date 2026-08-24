@@ -109,7 +109,7 @@ public class Kit {
 
                     try {
                         deleteWallet(walletName);
-                        log.error(Kit.class.getName(), "deleted UnreadableWalletE xception wallet causing issues: " + walletName);
+                        log.error(Kit.class.getName(), "Deleted UnreadableWallet Exception wallet causing issues: " + walletName);
                     } catch (IOException ex) {
                         log.error(Kit.class.getName(), "Error occurred while deleting a UnreadableWallet in Kit.start() wallet: " + walletName, ex);
                     }
@@ -121,7 +121,6 @@ public class Kit {
                 @Override
                 protected void doneDownload() {
                     log.info(Kit.class.getName(), "Chain Sync complete");
-                    // your code here: update UI, enable send button, etc.
                 }
             });
 
