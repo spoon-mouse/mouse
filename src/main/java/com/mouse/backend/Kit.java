@@ -347,10 +347,7 @@ public class Kit {
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
 
-            peerGroup.setMinRequiredProtocolVersion(70016);
-
-            log.info("ProtocolVersion.CURRENT.intValue() {}", ProtocolVersion.CURRENT.intValue());
-            peerGroup.start();
+            peerGroup.setMinRequiredProtocolVersion(70016);peerGroup.start();
 
             peerGroup.addConnectedEventListener((peer, connected) -> {
                 progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
