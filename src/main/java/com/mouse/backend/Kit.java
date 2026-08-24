@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
@@ -81,6 +82,12 @@ public class Kit {
         }
 
         WALLET_DIR_PATH = filePathbase.toPath();
+
+        try {
+            Files.createDirectories(WALLET_DIR_PATH);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         try {
             checkSeqVerRepo = new AppendOnlyMultiMapStore(WALLET_DIR_PATH+"/checkSeqVer.log");
