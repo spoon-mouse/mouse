@@ -76,18 +76,18 @@ public class Kit {
      *
      */
     public static synchronized void start(File filePathbase) {
-
         if (instance != null) {
             return;
         }
 
+        WALLET_DIR_PATH = filePathbase.toPath();
+
         try {
-            checkSeqVerRepo = new AppendOnlyMultiMapStore("csvRepo.log");
+            checkSeqVerRepo = new AppendOnlyMultiMapStore(WALLET_DIR_PATH+"/checkSeqVer.log");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        WALLET_DIR_PATH = filePathbase.toPath();
 
         try {
             BlockStore blockStore = new SPVBlockStore(NETWORK_PARAMETERS, new File(WALLET_DIR_PATH + "/shared" + SPVCHAIN_FILE_POST_FIX));
