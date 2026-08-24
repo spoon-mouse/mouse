@@ -281,19 +281,19 @@ public class Kit {
         String seed = getWalletSeed(walletName, prompt);
         long epochSeconds = getWalletCreationTime(walletName);
         String newName = walletName + "_NEW";
-        String oldName = walletName + "_OLD";
+        String tmpName = walletName + "_TMP";
 
         restore_from_seed(newName, seed, epochSeconds,  progress);
         progress.event("Restored wallet: " + newName);
 
-        reName(walletName, oldName);
-        progress.event("reName(" + walletName + ", " + oldName + ")");
+        reName(walletName, tmpName);
+        progress.event("reName(" + walletName + ", " + tmpName + ")");
 
         reName(newName, walletName);
         progress.event("reName(" + newName + ", " + walletName + ")");
 
-        deleteWallet(oldName);
-        progress.event("deleted wallet: " + oldName);
+        deleteWallet(tmpName);
+        progress.event("deleted wallet: " + tmpName);
     }
 
     public static synchronized long getWalletCreationTime(String walletName){
@@ -341,12 +341,16 @@ public class Kit {
         }
 
         try {
-            Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH);
+            Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.clearTransactions(0);
+
 
 
             CsvScriptExtension csv = new CsvScriptExtension();
             wallet.addExtension(csv);
+            //magic wallet init keys, or the wallet will not recognise keys that it really owns
+            log.info("Current receive address: {}", wallet.currentReceiveAddress().toString());
+
             checkSeqVerRepo.restoreRedeemScripts(wallet, csv);
             attachCsvSupport(wallet, csv);
 
@@ -434,6 +438,14 @@ public class Kit {
         return MetaWallet.get(walletName, getWallet(walletName));
     }
 
+    public static List<MetaWallet> getMetaWalletByAddress(String address){
+        final List<Map.Entry<String, Wallet>> list = wallets.entrySet().stream().filter(entry -> entry.getValue().isAddressMine(entry.getValue().parseAddress(address))).toList();
+        return list.stream().map(entry -> MetaWallet.get(entry.getKey(), entry.getValue())).toList();
+    }
+
+    public static void addRedeemScriptByAddress(String address, String kvStringProgHexCreationTime) {
+        getMetaWalletByAddress(address).forEach(metaWallet -> addRedeemScript(metaWallet.name(), kvStringProgHexCreationTime));
+    }
     public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
 
         final Wallet wallet = getWallet(walletName);
