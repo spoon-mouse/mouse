@@ -1,7 +1,11 @@
 package com.mouse.backend.csv;
 
 import com.mouse.backend.hook.InfoHook;
+import com.mouse.backend.util.AddressScript;
 import com.mouse.backend.util.Config;
+import com.mouse.backend.util.KvStringSplit;
+import org.bitcoinj.base.Address;
+import org.bitcoinj.base.AddressParser;
 import org.bitcoinj.base.internal.ByteUtils;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.*;
@@ -9,6 +13,7 @@ import org.bitcoinj.script.*;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 
 public class CsvUtil {
 
@@ -45,20 +50,45 @@ public class CsvUtil {
 
     public String getRedeemScriptHexKV(TransactionOutput output ) {
         Script redeemScript = getRedeemScript(output);
-        return getRedeemScriptHexKV(redeemScript);
+        return serializeRedeemScriptHexKV(redeemScript);
     }
 
-    public static String getRedeemScriptHexKV(Script redeemScript) {
+    public static String serializeRedeemScriptHexKV(Script redeemScript) {
         checkRedeemScript(redeemScript);
 
         final byte[] programBytes = redeemScript.program();
         String hexStr = HexFormat.of().formatHex(programBytes);
 
         final Instant instant = redeemScript.creationTime().orElse(Instant.EPOCH);
-        final long epochSecond = instant.getEpochSecond();
+        final long creationEpochSeconds = instant.getEpochSecond();
 
-        return Config.REDEEM_SCRIPT_HEX_KEY + "=" + hexStr + " " + Config.CREATION_TIME_KEY + "=" + epochSecond;
+        return Config.REDEEM_SCRIPT_HEX_KEY+"="+hexStr+" "+Config.CREATION_TIME_KEY+"="+creationEpochSeconds;
     }
+
+    public static Script deSerializeRedeemScriptHexKV(String kvStringProgHexCreationTimeSeconds) {
+
+        final Map<String, String> kv = KvStringSplit.split(kvStringProgHexCreationTimeSeconds);
+        String hexStr = kv.get(Config.REDEEM_SCRIPT_HEX_KEY);
+        String creation = kv.get(Config.CREATION_TIME_KEY);
+        long creationEpochSeconds = Long.parseLong(creation);
+        Script script = new Script(HexFormat.of().parseHex(hexStr), creationEpochSeconds);
+
+        return script;
+    }
+
+    public static String exportForQR(Address address, Script script){
+        return "address="+address.toString()+" "+CsvUtil.serializeRedeemScriptHexKV(script);
+    }
+    public static AddressScript importFromQR(String data){
+        final Map<String, String> kv = KvStringSplit.split(data);
+
+        String addressStr = kv.get("address");
+        final Address address = AddressParser.getDefault().parseAddress(addressStr);
+        final Script script = deSerializeRedeemScriptHexKV(data.substring(data.indexOf(' ')+1));
+
+        return new AddressScript(address, script);
+    }
+
 
 
 

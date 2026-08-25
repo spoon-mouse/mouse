@@ -1,6 +1,7 @@
 package com.mouse.backend.csv;
 
 import com.mouse.backend.Kit;
+import com.mouse.backend.hook.BoolPrompt;
 import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.hook.PasswordPrompt;
 import com.mouse.backend.txn.IllegalAmountException;
@@ -47,12 +48,8 @@ public class CsvTxn extends Txn {
         return builder.build();
     }
 
-    private static void printRedeemScript(InfoHook progress, Script redeemScript) {
-        String kvHexStr = CsvUtil.getRedeemScriptHexKV(redeemScript);
-        progress.event(kvHexStr);
-    }
 
-    public TxnInfo send(PasswordPrompt prompt, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException, IOException {
+    public TxnInfo send(PasswordPrompt prompt, BoolPrompt warned, InfoHook progress) throws InsufficientMoneyException, ExecutionException, InterruptedException, IllegalAmountException, IOException {
 
         Script redeemScript = createRedeemScript();
         Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
@@ -65,12 +62,11 @@ public class CsvTxn extends Txn {
         tx = selectTxnInputs(sendRequest);
         tx = deEncryptWalletAndSignTx(tx, prompt);
 
-        //save before send
-        Kit.saveIfAddressInKit(address, redeemScript, p2wshOutputScript);
-        printRedeemScript(progress, redeemScript);
+        Kit.saveRedeemScript(address, redeemScript);
 
-        return TxnInfo.get( broadcastTx(tx, progress), wallet );
+        if(warned.prompt( CsvUtil.exportForQR(address, redeemScript)) ){
+            return TxnInfo.get( broadcastTx(tx, progress), wallet );
+        }
+        return null;
     }
-
-
 }

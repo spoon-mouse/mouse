@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
@@ -447,27 +446,34 @@ public class Kit {
         return list.stream().map(entry -> MetaWallet.get(entry.getKey(), entry.getValue())).toList();
     }
 
-    public static void addRedeemScriptByAddress(String address, String kvStringProgHexCreationTime) {
-        getMetaWalletByAddress(address).forEach(metaWallet -> addRedeemScript(metaWallet.name(), kvStringProgHexCreationTime));
-    }
     public static void restoreRedeemScripts(String walletName) {
         final Wallet wallet = getWallet(walletName);
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         checkSeqVerRepo.restoreRedeemScripts(wallet, ext);
     }
 
-    public static void addRedeemScript(String walletName, String kvStringProgHexCreationTime) {
+    public static void saveRedeemQr(String qr) throws Exception {
+        try {
+            final AddressScript r = CsvUtil.importFromQR(qr);
+            saveRedeemScript(r.address(), r.script());
+        }catch (Exception e) {
+            log.error(Kit.class.getName(), "Error occurred while importing QR code: "+qr, e);
+            throw e;
+        }
+    }
 
-        final Wallet wallet = getWallet(walletName);
-        CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-        final Script redeemScript = ext.addRedeemScript(kvStringProgHexCreationTime);
+    public static void saveRedeemScript(Address address, Script redeemScript) throws IOException {
 
-        Script p2wshOutputScript = createP2WSHOutputScript(redeemScript);
-        p2wshOutputScript = Script.parse(p2wshOutputScript.program(), redeemScript.creationTime().get() );
+        final Script p2wshOutputScript = Script.parse( createP2WSHOutputScript(redeemScript).program(), redeemScript.creationTime().orElse(Instant.EPOCH) );
 
-        wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
+        wallets.values().stream().filter(wallet -> wallet.isAddressMine(address)).forEach(wallet -> {
+            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
+            ext.addRedeemScript(redeemScript);
+            wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
+        });
 
-        log.info(Kit.class.getName(), "add watched script: {}", redeemScript);
+        String kvHexStr = CsvUtil.serializeRedeemScriptHexKV(redeemScript);
+        checkSeqVerRepo.put(address.toString(), kvHexStr);
     }
 
     public static void viewRedeemScripts(String walletName, InfoHook react) {
@@ -512,6 +518,12 @@ public class Kit {
         return wallet.getTransactionsByTime().stream().map(txn -> TxnInfo.get(txn, wallet)).toList();
     }
 
+    public static TxnInfo setTxnInConflict(String walletName, String id) {
+        TxnInfo tx = getTxn(walletName, id);
+        tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.IN_CONFLICT);
+        return tx;
+    }
+
     public static TxnInfo setTxnDead(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.DEAD);
@@ -523,18 +535,10 @@ public class Kit {
         return wallet.currentReceiveAddress().toString();
     }
 
-    public static void saveIfAddressInKit(Address address, Script redeemScript, Script p2wshOutputScript) throws IOException {
-        wallets.values().stream().filter(wallet -> wallet.isAddressMine(address)).forEach(wallet -> {
-            CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
-            ext.addRedeemScript(redeemScript);
-            wallet.addWatchedScripts(Collections.singletonList(p2wshOutputScript));
-        });
-
-        String kvHexStr = CsvUtil.getRedeemScriptHexKV(redeemScript);
-        checkSeqVerRepo.put(address.toString(), kvHexStr);
-    }
 
 
+
+    /*
     public static TxnInfo sendStandardTxn(String walletName, String addressTxt, long amount, double feePerVbyte, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
         final Wallet wallet = getWallet(walletName);
 
@@ -582,6 +586,8 @@ public class Kit {
 
         return TxnInfo.get( sendResult.transaction(), wallet);
     }
+    */
+
 
     public static List<String> getIssuedReceiveAddresses(String walletName) {
         final Wallet wallet = getWallet(walletName);
