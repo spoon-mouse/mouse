@@ -111,15 +111,8 @@ public class Kit {
                 String walletName = fileName.substring(0, fileName.length() - WALLET_FILE_POST_FIX.length());
                 try {
                     loadOrCreateWallet(walletName);
-                } catch (UnreadableWalletException | IOException e) {
+                } catch (UnreadableWalletException | IOException | IllegalStateException e) {
                     log.error(Kit.class.getName(), "loading wallet " + walletName + " failed: ", e);
-
-                    try {
-                        deleteWallet(walletName);
-                        log.error(Kit.class.getName(), "Deleted UnreadableWallet Exception wallet causing issues: " + walletName);
-                    } catch (IOException ex) {
-                        log.error(Kit.class.getName(), "Error occurred while deleting a UnreadableWallet in Kit.start() wallet: " + walletName, ex);
-                    }
                 }
             });
 
@@ -197,8 +190,12 @@ public class Kit {
         wallet.setAcceptRiskyTransactions(true);
         attachCsvSupport(wallet, csv);
 
-        chain.addWallet(wallet);
-        peerGroup.addWallet(wallet);
+        try {
+            chain.addWallet(wallet);
+            peerGroup.addWallet(wallet);
+        } catch (Exception e) {
+            log.error(Kit.class.getName(), "Error occurred while attaching wallet to chain/peer group: " + walletName, e);
+        }
 
         wallets.put(walletName, wallet);
         return wallet;
@@ -515,6 +512,11 @@ public class Kit {
         return wallet.getTransactionsByTime().stream().map(txn -> TxnInfo.get(txn, wallet)).toList();
     }
 
+    public static TxnInfo setTxnDead(String walletName, String id) {
+        TxnInfo tx = getTxn(walletName, id);
+        tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.DEAD);
+        return tx;
+    }
 
     public static String getCurrentReceiveAddress(String walletName) {
         final Wallet wallet = getWallet(walletName);

@@ -5,9 +5,11 @@ import org.bitcoinj.wallet.Wallet;
 
 
 public record MetaWallet(Wallet wallet, String name, String id) {
+
     public static MetaWallet get(String walletName, Wallet wallet){
 
         Sha256Hash hash = Sha256Hash.ZERO_HASH;
+
         if(!wallet.isEncrypted()){
             hash = Sha256Hash.of(wallet.getKeyChainSeed().getSeedBytes());
         }
