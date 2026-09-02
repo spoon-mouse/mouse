@@ -12,6 +12,7 @@ import com.mouse.backend.hook.DownloadTracker;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
+import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
@@ -521,13 +522,89 @@ public class Kit {
     public static TxnInfo setTxnInConflict(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.IN_CONFLICT);
+        save(walletName);
         return tx;
     }
 
     public static TxnInfo setTxnDead(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.DEAD);
+        save(walletName);
         return tx;
+    }
+
+    public static TxnInfo setTxnPending(String walletName, String id) {
+        TxnInfo tx = getTxn(walletName, id);
+        tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.PENDING);
+        save(walletName);
+        return tx;
+    }
+
+    public static TxnInfo abandonTxn(String walletName, String id) {
+        Wallet wallet = getWallet(walletName);
+        TxnInfo info = getTxn(walletName, id);
+
+        if (info == null)
+            throw new IllegalArgumentException("Transaction not found: " + id);
+
+        Transaction tx = info.tx();
+
+        if (tx.getConfidence().getConfidenceType()
+                != TransactionConfidence.ConfidenceType.PENDING) {
+            throw new IllegalStateException(
+                    "Expected PENDING, was " + tx.getConfidence().getConfidenceType());
+        }
+
+        Set<Transaction> parents = new HashSet<>();
+
+        for (TransactionInput input : tx.getInputs()) {
+            TransactionOutput output = input.getConnectedOutput();
+            if (output != null && output.getParentTransaction() != null)
+                parents.add(output.getParentTransaction());
+        }
+
+        RiskAnalysis.Analyzer originalAnalyzer = wallet.getRiskAnalyzer();
+        boolean originalAcceptRisky = wallet.isAcceptRiskyTransactions();
+
+        wallet.setRiskAnalyzer((w, candidate, dependencies) ->
+                () -> candidate.getTxId().equals(tx.getTxId())
+                        ? RiskAnalysis.Result.NON_STANDARD
+                        : originalAnalyzer.create(w, candidate, dependencies).analyze());
+
+        wallet.setAcceptRiskyTransactions(false);
+
+        try {
+            try {
+                wallet.cleanup();
+            } catch (IllegalStateException e) {
+                if (e.getMessage() == null ||
+                        !e.getMessage().startsWith("Inconsistent spent tx:")) {
+                    throw e;
+                }
+
+                // cleanup() already disconnected the inputs.
+                Map<Sha256Hash, Transaction> spent =
+                        wallet.getTransactionPool(WalletTransaction.Pool.SPENT);
+
+                for (Transaction parent : parents) {
+                    if (spent.remove(parent.getTxId()) != null) {
+                        wallet.addWalletTransaction(
+                                new WalletTransaction(
+                                        WalletTransaction.Pool.UNSPENT,
+                                        parent));
+                    }
+                }
+            }
+
+            wallet.isConsistentOrThrow();
+
+        } finally {
+            wallet.setRiskAnalyzer(originalAnalyzer);
+            wallet.setAcceptRiskyTransactions(originalAcceptRisky);
+        }
+
+        save(walletName);
+        return info;
     }
 
     public static String getCurrentReceiveAddress(String walletName) {
