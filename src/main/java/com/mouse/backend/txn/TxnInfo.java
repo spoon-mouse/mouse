@@ -135,9 +135,12 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     }
 
     public String overRidingTxnId(){
-        final Sha256Hash overridingTxId = tx.getConfidence().getOverridingTxId();
-        if (overridingTxId != null) {
-            return overridingTxId.toString();
+        TransactionConfidence confidence = tx.getConfidence();
+        if (confidence != null && confidence.getConfidenceType() == TransactionConfidence.ConfidenceType.DEAD) {
+            final Sha256Hash overridingTxId = confidence.getOverridingTxId();
+            if (overridingTxId != null) {
+                return overridingTxId.toString();
+            }
         }
         return null;
     }
