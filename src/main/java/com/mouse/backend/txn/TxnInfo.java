@@ -131,7 +131,10 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
     public long toMe() { return tx.getValueSentToMe(wallet).getValue(); }
 
     public String blockHash(){
-        return tx.getAppearsInHashes().entrySet().stream().max(Comparator.comparingInt(Map.Entry::getValue)).get().getKey().toString();
+        return tx.getAppearsInHashes().entrySet().stream()
+                .max(Comparator.comparingInt(Map.Entry::getValue))
+                .map(entry -> entry.getKey().toString())
+                .orElse("");
     }
 
     public String overRidingTxnId(){
@@ -175,7 +178,10 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
 
     public int appearedAtChainHeight() {
         TransactionConfidence confidence = tx.getConfidence();
-        return (confidence != null) ? confidence.getAppearedAtChainHeight() : -1;
+        if (confidence != null && confidence.getConfidenceType() == TransactionConfidence.ConfidenceType.BUILDING) {
+            return confidence.getAppearedAtChainHeight();
+        }
+        return -1;
     }
 
     public int numBroadcastPeers() {
