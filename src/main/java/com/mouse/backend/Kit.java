@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.regex.Pattern;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
 import static com.mouse.backend.util.Config.*;
@@ -64,6 +65,7 @@ public class Kit {
     private static java.time.Duration autosaveDuration = java.time.Duration.ofSeconds(5);
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
+    private static final Pattern ALLOWED_WALLET_NAME = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?");
 
     private Kit(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
         this.blockStore = blockStore;
@@ -131,7 +133,17 @@ public class Kit {
 
     }
 
+    public static boolean checkWalletName(String walletName){
+           return ALLOWED_WALLET_NAME.matcher(walletName).matches();
+    }
+
+
     public static synchronized Wallet reName(String walletName, String newName) throws UnreadableWalletException, IOException {
+
+        if (!checkWalletName(newName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + newName);
+        }
+
         final Wallet wallet = getWallet(walletName);
         File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
         if (newWalletFile.exists() || wallets.containsKey(newName)) {
@@ -169,6 +181,11 @@ public class Kit {
      * shared chain + peer group. Returns the ready-to-use Wallet.
      */
     public static synchronized Wallet loadOrCreateWallet(String walletName) throws UnreadableWalletException, IOException {
+
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
+
         if (wallets.containsKey(walletName)) {
             return getWallet(walletName);
         }
@@ -282,6 +299,11 @@ public class Kit {
     }
 
     public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException {
+
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
+
         String seed = getWalletSeed(walletName, prompt);
         long epochSeconds = getWalletCreationTime(walletName);
         String newName = walletName + "_NEW";
@@ -332,6 +354,11 @@ public class Kit {
     }
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
+
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
+
         File walletFile    = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
         if (walletFile.exists() || wallets.containsKey(walletName)) {
             throw new IllegalArgumentException("Wallet with name " + walletName + " already exists");
@@ -408,6 +435,10 @@ public class Kit {
     }
 
     private static synchronized void save(String walletName) {
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
+
         try {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
             getWallet(walletName).saveToFile(walletFile);
@@ -613,59 +644,6 @@ public class Kit {
     }
 
 
-
-
-    /*
-    public static TxnInfo sendStandardTxn(String walletName, String addressTxt, long amount, double feePerVbyte, char[] password, InfoHook progress) throws ConnectException, InsufficientMoneyException, IllegalAmountException {
-        final Wallet wallet = getWallet(walletName);
-
-        if(peerGroup.numConnectedPeers() < MIN_PEERS_TO_CAST_TXN) {
-            throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_TO_CAST_TXN+"]");
-        }
-
-        Address address = null;
-        try{
-            address = wallet.parseAddress( addressTxt );
-        }catch (AddressFormatException e){
-            throw new  AddressFormatException("Bad address");
-        }
-
-        final Coin amountCoin = Coin.ofSat( amount );
-        if(amountCoin.isZero() || amountCoin.isNegative()){
-            throw new IllegalAmountException("Amount is invalid "+amountCoin);
-        }
-
-        Coin feePerVkbCoin = Coin.ofSat( (long) (feePerVbyte * 1000));
-        SendRequest sendRequest = SendRequest.to(address, amountCoin);
-        sendRequest.setFeePerVkb(feePerVkbCoin);
-
-        if(wallet.isEncrypted()) {
-            CharArrayCharSequence passwordCharSeq = new CharArrayCharSequence(password);
-            sendRequest.aesKey = wallet.getKeyCrypter().deriveKey(passwordCharSeq);
-            passwordCharSeq.wipe();
-        }
-
-        Wallet.SendResult sendResult;
-        try {
-             sendResult = wallet.sendCoins(sendRequest);
-        }catch (Exception e) {
-            throw e;
-        }finally {
-            if (sendRequest.aesKey != null) {
-                Arrays.fill(sendRequest.aesKey.bytes(), (byte) 0);
-            }
-        }
-
-        try {
-            sendResult.getBroadcast().awaitSent().get(10, TimeUnit.SECONDS);
-            progress.event("broadcast");
-        } catch (InterruptedException | ExecutionException | TimeoutException e) { }
-
-        return TxnInfo.get( sendResult.transaction(), wallet);
-    }
-    */
-
-
     public static List<String> getIssuedReceiveAddresses(String walletName) {
         final Wallet wallet = getWallet(walletName);
         return wallet.getIssuedReceiveAddresses().stream().map(Address::toString).toList();
@@ -684,17 +662,6 @@ public class Kit {
             progress.event("broadcast timeout");
         }
 
-        //not much point waiting for relayed
-        /*
-        CompletableFuture[] relay = casts.stream().map(cast -> cast.awaitRelayed()).toArray(CompletableFuture[]::new);
-        try {
-            CompletableFuture.allOf(relay).get(30, TimeUnit.SECONDS);
-            progress.event("relayed "+relay.length+" tnx");
-        } catch (Exception e) {
-            progress.event("relay timeout");
-            log.error("Error occurred while waiting for transactions to be relayed", e);
-        }
-        */
     }
 
 
