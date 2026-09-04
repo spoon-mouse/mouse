@@ -4,6 +4,7 @@ import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.core.Transaction;
+import org.bitcoinj.core.TransactionConfidence;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
 
@@ -143,6 +144,45 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
 
     public boolean isDusty(){
          return tx.getOutputs().stream().anyMatch(TransactionOutput::isDust);
+    }
+
+    public TxStatus status() {
+        TransactionConfidence confidence = tx.getConfidence();
+        if (confidence == null) return TxStatus.UNKNOWN;
+        return switch (confidence.getConfidenceType()) {
+            case PENDING -> TxStatus.PENDING;
+            case BUILDING -> TxStatus.BUILDING;
+            case DEAD -> TxStatus.DEAD;
+            default -> TxStatus.UNKNOWN;
+        };
+    }
+
+    public int depth() {
+        TransactionConfidence confidence = tx.getConfidence();
+        return (confidence != null) ? confidence.getDepthInBlocks() : 0;
+    }
+
+    public long timestamp() {
+        try {
+            return tx.updateTime().get().toEpochMilli();
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    public int appearedAtChainHeight() {
+        TransactionConfidence confidence = tx.getConfidence();
+        return (confidence != null) ? confidence.getAppearedAtChainHeight() : -1;
+    }
+
+    public int numBroadcastPeers() {
+        TransactionConfidence confidence = tx.getConfidence();
+        return (confidence != null) ? confidence.numBroadcastPeers() : 0;
+    }
+
+    public String sourceName() {
+        TransactionConfidence confidence = tx.getConfidence();
+        return (confidence != null && confidence.getSource() != null) ? confidence.getSource().name() : "";
     }
 
 }
