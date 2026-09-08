@@ -242,12 +242,7 @@ public class Kit {
     }
 
     public static Wallet wallet(String walletName) {
-        Wallet wallet = wallets.get(walletName);
-        if (wallet == null) {
-            log.info(Kit.class.getName(), "Wallet not loaded: " + walletName);
-            throw new IllegalStateException("Wallet not loaded: " + walletName);
-        }
-        return wallet;
+        return wallets.get(walletName);
     }
 
     /**
@@ -326,6 +321,7 @@ public class Kit {
 
     public static synchronized long getWalletCreationTime(String walletName){
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return 0;
         final Optional<Instant> creationTime = wallet.getKeyChainSeed().getCreationTime();
         if(creationTime.isPresent()) {
             return creationTime.get().getEpochSecond();
@@ -335,6 +331,7 @@ public class Kit {
 
     public static synchronized String getWalletSeed(String walletName, PasswordPrompt prompt) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return "";
         String seed="";
         CharArrayCharSequence password=null;
         if(wallet.isEncrypted()){
@@ -443,9 +440,12 @@ public class Kit {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
         }
 
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
+
         try {
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-            getWallet(walletName).saveToFile(walletFile);
+            wallet.saveToFile(walletFile);
         } catch (IOException e) {
             log.error(Kit.class.getName(), "Error occurred while saving wallet: "+walletName, e);
             throw new RuntimeException(e);
@@ -461,7 +461,10 @@ public class Kit {
     }
 
     public static void cleanup(String walletName) {
-        getWallet(walletName).cleanup();
+        final Wallet wallet = getWallet(walletName);
+        if (wallet != null) {
+            wallet.cleanup();
+        }
     }
 
 
@@ -474,7 +477,9 @@ public class Kit {
     }
 
     public static MetaWallet getMetaWallet(String walletName){
-        return MetaWallet.get(walletName, getWallet(walletName));
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return null;
+        return MetaWallet.get(walletName, wallet);
     }
 
     public static List<MetaWallet> getMetaWalletByAddress(String address){
@@ -484,6 +489,7 @@ public class Kit {
 
     public static void restoreRedeemScripts(String walletName) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         checkSeqVerRepo.restoreRedeemScripts(wallet, ext);
     }
@@ -514,12 +520,14 @@ public class Kit {
 
     public static void viewRedeemScripts(String walletName, InfoHook react) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         ext.getRedeemScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
     public static void viewWatchedScripts(String walletName, InfoHook react) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
         wallet.getWatchedScripts().forEach(s->react.event(s.toString()+" "+s.creationTime().get().getEpochSecond()));
     }
 
@@ -537,6 +545,7 @@ public class Kit {
 
     public static List<Utxo> utxos(String walletName) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return Collections.emptyList();
 
         CsvScriptExtension ext = (CsvScriptExtension) wallet.getExtensions().get(COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS);
         CsvUtil scvUtil = new CsvUtil( ext );
@@ -551,11 +560,13 @@ public class Kit {
 
     public static List<TxnInfo> getTxns(String walletName) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return Collections.emptyList();
         return wallet.getTransactionsByTime().stream().map(txn -> TxnInfo.get(txn, wallet)).toList();
     }
 
     public static TxnInfo setTxnInConflict(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
+        if (tx == null) return null;
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.IN_CONFLICT);
         save(walletName);
         return tx;
@@ -563,6 +574,7 @@ public class Kit {
 
     public static TxnInfo setTxnDead(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
+        if (tx == null) return null;
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.DEAD);
         save(walletName);
         return tx;
@@ -570,6 +582,7 @@ public class Kit {
 
     public static TxnInfo setTxnPending(String walletName, String id) {
         TxnInfo tx = getTxn(walletName, id);
+        if (tx == null) return null;
         tx.tx().getConfidence().setConfidenceType(TransactionConfidence.ConfidenceType.PENDING);
         save(walletName);
         return tx;
@@ -577,6 +590,7 @@ public class Kit {
 
     public static TxnInfo abandonTxn(String walletName, String id) {
         Wallet wallet = getWallet(walletName);
+        if (wallet == null) return null;
         TxnInfo info = getTxn(walletName, id);
 
         if (info == null)
@@ -644,17 +658,20 @@ public class Kit {
 
     public static String getCurrentReceiveAddress(String walletName) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return "";
         return wallet.currentReceiveAddress().toString();
     }
 
 
     public static List<String> getIssuedReceiveAddresses(String walletName) {
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return Collections.emptyList();
         return wallet.getIssuedReceiveAddresses().stream().map(Address::toString).toList();
     }
 
     public static void reCast(String walletName, InfoHook progress){
         final Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
 
         List<TransactionBroadcast> casts = wallet.getPendingTransactions().stream().map(tx -> Kit.peerGroup().broadcastTransaction(tx, MIN_PEERS_TO_CAST_TXN, false)).toList();
 
@@ -716,8 +733,10 @@ public class Kit {
     }
 
     public static void btcSent(String walletName, InfoHook progress){
-        getWallet(walletName).addCoinsSentEventListener((wallet, txn, prevBalance, newBalance) -> {
-            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
+        wallet.addCoinsSentEventListener((w, txn, prevBalance, newBalance) -> {
+            TxnInfo txnInfo = TxnInfo.get(txn, w);
             progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.amount()+" + fee: "+txnInfo.fee());
         });
     }
@@ -728,8 +747,10 @@ public class Kit {
     }
 
     public static void btcReceived(String walletName, InfoHook progress){
-        getWallet(walletName).addCoinsReceivedEventListener((wallet, txn, prevBalance, newBalance) -> {
-            TxnInfo txnInfo = TxnInfo.get(txn, wallet);
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return;
+        wallet.addCoinsReceivedEventListener((w, txn, prevBalance, newBalance) -> {
+            TxnInfo txnInfo = TxnInfo.get(txn, w);
             if(txnInfo.isNotChange()){
                 progress.event(walletName+" "+txnInfo.type()+" "+txnInfo.value());
             }
