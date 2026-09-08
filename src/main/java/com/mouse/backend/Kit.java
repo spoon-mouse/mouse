@@ -16,6 +16,8 @@ import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
+import org.bitcoinj.crypto.MnemonicCode;
+import org.bitcoinj.crypto.MnemonicException;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.store.BlockStore;
@@ -298,7 +300,7 @@ public class Kit {
         instance = null;
     }
 
-    public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException {
+    public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException, MnemonicException {
 
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
@@ -353,7 +355,7 @@ public class Kit {
         return seed;
     }
 
-    public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) {
+    public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) throws MnemonicException {
 
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
@@ -363,6 +365,8 @@ public class Kit {
         if (walletFile.exists() || wallets.containsKey(walletName)) {
             throw new IllegalArgumentException("Wallet with name " + walletName + " already exists");
         }
+
+        MnemonicCode.INSTANCE.check( Arrays.asList( seed_txt.trim().split(" ")  ) );
 
         DeterministicSeed seed;
         if(epochSeconds<=0L){

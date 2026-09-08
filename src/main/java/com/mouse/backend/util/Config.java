@@ -21,7 +21,7 @@ public class Config {
 
     public static final String  DEFAULT_WALLET_NAME = "wallet";
 
-    public static final BitcoinNetwork NETWORK = BitcoinNetwork.SIGNET;
+    public static final BitcoinNetwork NETWORK = BitcoinNetwork.MAINNET;
     public static final NetworkParameters NETWORK_PARAMETERS = NetworkParameters.of(NETWORK);
 
     //public static final String walletDirStr = "wallet";
