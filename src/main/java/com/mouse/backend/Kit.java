@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
@@ -146,34 +147,36 @@ public class Kit {
             throw new IllegalArgumentException("Invalid wallet name: " + newName);
         }
 
-        final Wallet wallet = getWallet(walletName);
-        File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
-        if (newWalletFile.exists() || wallets.containsKey(newName)) {
+        if (wallets.containsKey(newName)) {
             throw new IllegalArgumentException("Wallet with name " + newName + " already exists");
         }
-        Wallet newWallet = null;
-        try {
-            wallet.saveToFile(newWalletFile);
-            try {
-                newWallet = loadOrCreateWallet(newName);
-                try {
-                    deleteWallet(walletName);
-                } catch (IOException e) {
-                    log.error(Kit.class.getName(), "Error occurred while deleting old wallet file: " + walletName, e);
-                    throw new IOException("Failed to remove old wallet: " + walletName, e);
-                }
-            }catch (IOException e) {
-                log.error(Kit.class.getName(), "Error occurred while loading new wallet: " + newName, e);
-                throw new IOException("Failed to load new wallet: " + newName, e);
-            } catch (UnreadableWalletException e) {
-                log.error(Kit.class.getName(), "Error occurred while loading new wallet: " + newName, e);
-                throw new UnreadableWalletException(e.getMessage());
-            }
-        } catch (IOException e) {
-            log.error(Kit.class.getName(), "Error occurred while saving new wallet: " + newName, e);
-            throw new IOException("Failed to save new wallet: " + newName, e);
+
+        File oldWalletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+        File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
+
+        if (newWalletFile.exists()) {
+            throw new IllegalArgumentException("Wallet file for " + newName + " already exists");
         }
-        return newWallet;
+
+        // 1. Close current wallet to release file locks and ensure it's saved
+        closeWallet(walletName);
+
+        // 2. Perform atomic move
+        try {
+            Files.move(oldWalletFile.toPath(), newWalletFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException e) {
+            log.error(Kit.class.getName(), "Atomic rename failed, attempting fallback move", e);
+            try {
+                Files.move(oldWalletFile.toPath(), newWalletFile.toPath());
+            } catch (IOException ex) {
+                // If both fail, try to restore the original wallet in memory
+                loadOrCreateWallet(walletName);
+                throw new IOException("Failed to rename wallet file: " + ex.getMessage(), ex);
+            }
+        }
+
+        // 3. Load the newly named wallet
+        return loadOrCreateWallet(newName);
     }
 
 
