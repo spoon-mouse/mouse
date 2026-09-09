@@ -436,7 +436,7 @@ public class Kit {
                 Files.deleteIfExists(backupFile.toPath());
             }
 
-            Wallet tempWallet = wallets.remove(tempName);
+            wallets.remove(tempName);
 
             if (wallets.containsKey(walletName)) {
                 wallets.remove(walletName);
@@ -462,6 +462,11 @@ public class Kit {
         }
         finally {
             Arrays.fill(entropy, (byte) 0);
+            try {
+                Files.deleteIfExists(restoredFile.toPath());
+            } catch (IOException ignored) {
+                log.warn(Kit.class.getName(), "Could not remove temp restored wallet on cleanup for " + walletName, ignored);
+            }
         }
     }
 
@@ -534,10 +539,14 @@ public class Kit {
 
         DeterministicSeed seed;
         if (hasEntropy) {
-            if (epochSeconds <= 0L) {
-                seed = DeterministicSeed.ofEntropy(entropy, "");
-            } else {
-                seed = DeterministicSeed.ofEntropy(entropy, "", Instant.ofEpochSecond(epochSeconds));
+            try {
+                if (epochSeconds <= 0L) {
+                    seed = DeterministicSeed.ofEntropy(entropy, "");
+                } else {
+                    seed = DeterministicSeed.ofEntropy(entropy, "", Instant.ofEpochSecond(epochSeconds));
+                }
+            } finally {
+                Arrays.fill(entropy, (byte) 0);
             }
         } else {
             MnemonicCode.INSTANCE.check(Arrays.asList(seed_txt.trim().split(" ")));
