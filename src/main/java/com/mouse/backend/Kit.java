@@ -413,13 +413,19 @@ public class Kit {
             Arrays.fill(entropy, (byte) 0);
 
             File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-            File backupFile = new File(WALLET_DIR_PATH.toFile(), walletName + "-backup-" + UUID.randomUUID() + WALLET_FILE_POST_FIX);
+            File backupFile = new File(WALLET_DIR_PATH.toFile(), walletName + "_backup_" + UUID.randomUUID() + WALLET_FILE_POST_FIX);
             File tempFile = new File(WALLET_DIR_PATH.toFile(), tempName + WALLET_FILE_POST_FIX);
 
+            closeWallet(walletName);
             atomicMove(walletFile.toPath(), backupFile.toPath(), true);
+            closeWallet(tempName);
             atomicMove(tempFile.toPath(), walletFile.toPath(), true);
+
             fsyncDirectory(WALLET_DIR_PATH);
 
+            loadOrCreateWallet(walletName);
+
+            backupFile.delete();
         } catch ( MnemonicException | RuntimeException e) {
             log.error("Failed to restore wallet: " + tempName, e);
         }
