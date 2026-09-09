@@ -5,15 +5,12 @@ import com.mouse.backend.csv.CsvScriptExtension;
 import com.mouse.backend.csv.CsvUtil;
 import com.mouse.backend.hook.InfoHook;
 import com.mouse.backend.hook.PasswordPrompt;
-import com.mouse.backend.txn.IllegalAmountException;
 import com.mouse.backend.txn.TxnInfo;
 import com.mouse.backend.util.*;
 import com.mouse.backend.hook.DownloadTracker;
 import org.bitcoinj.base.Address;
-import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
-import org.bitcoinj.base.exceptions.AddressFormatException;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.crypto.MnemonicCode;
@@ -29,9 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.nio.channels.FileChannel;
-import java.nio.charset.CharacterCodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -501,7 +496,7 @@ public class Kit {
                 wallet.decrypt(password);
             }
 
-            List<char[]> seed = Bip39Util.getSeedPharase(wallet);
+            List<char[]> seed = Bip39Util.getMnemonicChars(wallet);
             return seed;
 
         } catch (Wallet.BadWalletEncryptionKeyException e) {
@@ -627,6 +622,8 @@ public class Kit {
         }
     }
 
+
+    /*
     public static synchronized void writeWalletMnemonicCached(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
@@ -668,10 +665,7 @@ public class Kit {
         }
     }
 
-    /**
-     * Fill provided char[][] dest buffers with mnemonic words. Caller must zero dest when done.
-     * dest must be non-null, length >= word count, and each dest[i] must be large enough for the word.
-     */
+
     public static synchronized void fillMnemonicIntoCharBuffers(String walletName, PasswordPrompt prompt, char[][] dest) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
@@ -692,6 +686,9 @@ public class Kit {
             if (w != null) Arrays.fill(w, '\0');
         }
     }
+
+    */
+
 
     private static synchronized void save(String walletName) {
         if (!checkWalletName(walletName)) {

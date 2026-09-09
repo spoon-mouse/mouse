@@ -1,6 +1,5 @@
 package com.mouse.backend.util;
 
-import org.bitcoinj.crypto.MnemonicException;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.Wallet;
 
@@ -8,8 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -161,7 +158,7 @@ public final class Bip39Util {
         return entropy;
     }
 
-    public static List<char[]> getSeedPharase(Wallet wallet) throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
+    public static List<char[]> getMnemonicChars(Wallet wallet) throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
         byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         int[] wordIndices = Bip39Util.bip39IndicesFromEntropy(entropy);
         Arrays.fill(entropy, (byte) 0);

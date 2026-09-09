@@ -19,7 +19,7 @@ public class Bip39UtilTest {
 
         Wallet wallet = Wallet.createDeterministic(NETWORK, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
 
-        List<char[]> words = Bip39Util.getSeedPharase(wallet);
+        List<char[]> words = Bip39Util.getMnemonicChars(wallet);
 
         String getMnemonicString = wallet.getKeyChainSeed().getMnemonicString();
 

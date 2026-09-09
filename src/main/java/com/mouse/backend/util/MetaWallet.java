@@ -49,7 +49,7 @@ public record MetaWallet(Wallet wallet, String name, String id) {
 
     public List<char[]> getMnemonic() throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
         if (wallet.getKeyChainSeed() == null) return null;
-        return Bip39Util.getSeedPharase(wallet);
+        return Bip39Util.getMnemonicChars(wallet);
     }
 
     public long getSeedCreationTime() {
