@@ -409,8 +409,7 @@ public class Kit {
         final boolean hadOriginalWallet = wallets.containsKey(walletName);
         final boolean hadOriginalFile = walletFile.exists();
 
-        Wallet wallet = getWallet(walletName);
-        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
+        byte[] entropy = getWalletEntropy(walletName, prompt);
         long epochSeconds = getWalletCreationTime(walletName);
 
         try {
@@ -512,6 +511,45 @@ public class Kit {
             }
         }
     }
+
+
+
+    public static synchronized byte[] getWalletEntropy(String walletName, PasswordPrompt prompt) throws NoSuchAlgorithmException, IOException, ReflectiveOperationException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) {
+            throw new IllegalArgumentException("Wallet not found: " + walletName);
+        }
+
+        final boolean wasEncrypted = wallet.isEncrypted();
+        CharArrayCharSequence password = null;
+
+        if (wasEncrypted) {
+            if (prompt == null) {
+                throw new IllegalArgumentException("Password prompt is required for encrypted wallet: " + walletName);
+            }
+            password = CharArrayCharSequence.of(prompt.getPassword());
+        }
+
+        try {
+            if (wasEncrypted) {
+                wallet.decrypt(password);
+            }
+
+            byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
+            return entropy;
+
+        } catch (Wallet.BadWalletEncryptionKeyException e) {
+            throw new IllegalArgumentException("Invalid wallet password for: " + walletName, e);
+        } finally {
+            if (wasEncrypted && password != null) {
+                wallet.encrypt(password);
+            }
+        }
+    }
+
+
+
+
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) throws MnemonicException {
         restore_from_seed_or_entropy(walletName, seed_txt, null, epochSeconds, progress);
