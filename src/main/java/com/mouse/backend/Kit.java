@@ -30,9 +30,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
@@ -78,6 +80,38 @@ public class Kit {
     private static void ensureInitialized(String operation) {
         if (!isInitialized()) {
             throw new IllegalStateException("Wallet backend not initialized; cannot " + operation);
+        }
+    }
+
+    private static void atomicMove(Path from, Path to, boolean replaceExisting) throws IOException {
+        try {
+            if (replaceExisting) {
+                Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } else {
+                Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
+            }
+        } catch (IOException atomicFailure) {
+            if (replaceExisting) {
+                Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                Files.move(from, to);
+            }
+        }
+    }
+
+    private static void fsyncPath(Path path) throws IOException {
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            channel.force(true);
+        } catch (IOException ignored) {
+            // Some filesystems do not support fsync on the target, so we fail open for durability.
+        }
+    }
+
+    private static void fsyncDirectory(Path directory) throws IOException {
+        try (FileChannel channel = FileChannel.open(directory, StandardOpenOption.READ)) {
+            channel.force(true);
+        } catch (IOException ignored) {
+            // Best-effort fsync for parent directories.
         }
     }
 
@@ -184,32 +218,14 @@ public class Kit {
         closeWallet(walletName);
 
         Path oldPath = oldWalletFile.toPath();
-        Path tmpPath = WALLET_DIR_PATH.resolve(newName + WALLET_FILE_POST_FIX + ".rename-" + UUID.randomUUID());
-        boolean movedToTemp = false;
-        boolean movedToFinal = false;
-
+        Path backupPath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX + ".backup-" + UUID.randomUUID());
         try {
-            try {
-                Files.move(oldPath, tmpPath, StandardCopyOption.ATOMIC_MOVE);
-                movedToTemp = true;
-            } catch (IOException atomicMoveFailure) {
-                log.warn(Kit.class.getName(), "Atomic move for wallet rename failed, falling back to regular move", atomicMoveFailure);
-                Files.move(oldPath, tmpPath);
-                movedToTemp = true;
-            }
-
-            try {
-                Files.move(tmpPath, newWalletFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-                movedToFinal = true;
-            } catch (IOException finalMoveFailure) {
-                log.warn(Kit.class.getName(), "Atomic final move for wallet rename failed, falling back to regular move", finalMoveFailure);
-                Files.move(tmpPath, newWalletFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                movedToFinal = true;
-            }
+            atomicMove(oldPath, backupPath, false);
+            atomicMove(backupPath, newWalletFile.toPath(), false);
         } catch (IOException e) {
-            if (movedToTemp && !movedToFinal && Files.exists(tmpPath)) {
+            if (Files.exists(backupPath) && !Files.exists(oldPath)) {
                 try {
-                    Files.move(tmpPath, oldPath, StandardCopyOption.REPLACE_EXISTING);
+                    atomicMove(backupPath, oldPath, false);
                 } catch (IOException rollbackFailure) {
                     log.error(Kit.class.getName(), "Failed to restore wallet file after rename rollback", rollbackFailure);
                 }
@@ -222,14 +238,12 @@ public class Kit {
                 }
             }
             throw new IOException("Failed to rename wallet file: " + e.getMessage(), e);
-        } finally {
-            if (!movedToFinal && Files.exists(tmpPath)) {
-                try {
-                    Files.deleteIfExists(tmpPath);
-                } catch (IOException ignored) {
-                    // best effort cleanup only; the main exception path is already handled above
-                }
-            }
+        }
+
+        try {
+            Files.deleteIfExists(backupPath);
+        } catch (IOException e) {
+            log.warn(Kit.class.getName(), "Rename succeeded but backup cleanup failed for " + walletName, e);
         }
 
         return loadOrCreateWallet(newName);
@@ -329,14 +343,16 @@ public class Kit {
 
         Path tempDeletePath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX + ".delete-" + UUID.randomUUID());
         try {
-            try {
-                Files.move(walletFile.toPath(), tempDeletePath, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException atomicMoveFailure) {
-                log.warn(Kit.class.getName(), "Atomic delete move failed, falling back to normal move", atomicMoveFailure);
-                Files.move(walletFile.toPath(), tempDeletePath);
-            }
+            atomicMove(walletFile.toPath(), tempDeletePath, false);
             Files.deleteIfExists(tempDeletePath);
         } catch (IOException e) {
+            if (Files.exists(tempDeletePath) && !Files.exists(walletFile.toPath())) {
+                try {
+                    atomicMove(tempDeletePath, walletFile.toPath(), false);
+                } catch (IOException rollbackFailure) {
+                    log.error(Kit.class.getName(), "Failed to restore wallet file after delete rollback", rollbackFailure);
+                }
+            }
             throw new IOException("Failed to delete wallet file: " + walletName, e);
         }
     }
@@ -536,12 +552,9 @@ public class Kit {
 
         try {
             wallet.saveToFile(tmpWalletPath.toFile());
-            try {
-                Files.move(tmpWalletPath, walletPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (IOException atomicFailure) {
-                log.warn(Kit.class.getName(), "Atomic wallet save failed, falling back to regular move for " + walletName, atomicFailure);
-                Files.move(tmpWalletPath, walletPath, StandardCopyOption.REPLACE_EXISTING);
-            }
+            fsyncPath(tmpWalletPath);
+            atomicMove(tmpWalletPath, walletPath, true);
+            fsyncDirectory(WALLET_DIR_PATH);
         } catch (IOException e) {
             log.error(Kit.class.getName(), "Error occurred while saving wallet: " + walletName, e);
             throw new RuntimeException(e);
