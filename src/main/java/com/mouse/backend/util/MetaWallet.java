@@ -47,6 +47,10 @@ public record MetaWallet(Wallet wallet, String name, String id) {
         wallet.decrypt(CharBuffer.wrap(password));
     }
 
+    public boolean checkPassword(CharSequence password) {
+        return wallet.checkPassword(password);
+    }
+
     public List<char[]> getMnemonic() throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
         if (wallet.getKeyChainSeed() == null) return null;
         return Bip39Util.getMnemonicChars(wallet);

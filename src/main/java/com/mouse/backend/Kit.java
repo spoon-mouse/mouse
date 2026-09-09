@@ -1038,4 +1038,9 @@ public class Kit {
         });
     }
 
+    public boolean checkPassword(String walletName, CharSequence password){
+         Wallet wallet = getWallet(walletName);
+         if (wallet == null) return false;
+         return wallet.checkPassword(password);
+    }
 }
