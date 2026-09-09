@@ -46,6 +46,10 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
+import com.mouse.backend.util.Bip39Util;
+import java.io.OutputStream;
+import java.security.NoSuchAlgorithmException;
+
 /**
  * Replaces WalletAppKit. Owns exactly ONE BlockStore/Kit/PeerGroup for the
  * whole application's lifetime, and hosts multiple wallets on top of that single
@@ -578,6 +582,102 @@ public class Kit {
 
     public static int connections(){
         return peerGroup.numConnectedPeers();
+    }
+
+    /**
+     * Write mnemonic words for a wallet to an OutputStream without creating Strings.
+     * All buffers used are byte[] and will be zeroed after use.
+     */
+    public static synchronized void writeWalletMnemonic(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
+
+        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
+        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+
+        byte[][] wordBytes = Bip39Util.loadWordlistBytes();
+        try {
+            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            Bip39Util.writeMnemonicFromIndices(out, indices, wordBytes);
+        } finally {
+            Arrays.fill(seedBytes, (byte)0);
+            for (byte[] w : wordBytes) {
+                Arrays.fill(w, (byte)0);
+            }
+        }
+    }
+
+    public static synchronized void writeWalletMnemonicCached(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
+
+        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
+        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+
+        byte[][] wordBytes = Bip39Util.getCachedWordlist();
+        try {
+            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            Bip39Util.writeMnemonicFromIndices(out, indices, wordBytes);
+        } finally {
+            Arrays.fill(seedBytes, (byte)0);
+            // do not wipe cached wordBytes
+        }
+    }
+
+    public static synchronized int[] getMnemonicIndices(String walletName, PasswordPrompt prompt) throws NoSuchAlgorithmException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
+        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
+        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+        try {
+            return Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+        } finally {
+            Arrays.fill(seedBytes, (byte)0);
+        }
+    }
+
+    public static synchronized char[][] getMnemonicCharArrays(String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
+
+        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
+        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+
+        byte[][] wordBytes = Bip39Util.getCachedWordlist();
+        try {
+            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            char[][] words = Bip39Util.mnemonicCharsFromIndices(indices, wordBytes);
+            return words;
+        } finally {
+            Arrays.fill(seedBytes, (byte)0);
+        }
+    }
+
+    /**
+     * Fill provided char[][] dest buffers with mnemonic words. Caller must zero dest when done.
+     * dest must be non-null, length >= word count, and each dest[i] must be large enough for the word.
+     */
+    public static synchronized void fillMnemonicIntoCharBuffers(String walletName, PasswordPrompt prompt, char[][] dest) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException {
+        final Wallet wallet = getWallet(walletName);
+        if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
+
+        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
+        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+
+        byte[][] wordBytes = Bip39Util.getCachedWordlist();
+        try {
+            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            Bip39Util.fillWordCharsFromIndices(indices, wordBytes, dest);
+        } finally {
+            Arrays.fill(seedBytes, (byte)0);
+        }
+    }
+
+    public static void wipeMnemonicCharArrays(char[][] words) {
+        if (words == null) return;
+        for (char[] w : words) {
+            if (w != null) Arrays.fill(w, '\0');
+        }
     }
 
     private static synchronized void save(String walletName) {
