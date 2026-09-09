@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.channels.FileChannel;
+import java.nio.charset.CharacterCodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -130,10 +131,12 @@ public class Kit {
      * for the whole app. Call once, at application startup.
      *
      */
-    public static synchronized void start(File filePathbase) {
+    public static synchronized void start(File filePathbase) throws IOException {
         if (instance != null) {
             return;
         }
+
+        Bip39Util.loadWordlistBytes();
 
         WALLET_DIR_PATH = filePathbase.toPath();
 
@@ -394,7 +397,7 @@ public class Kit {
         blockStore = null;
     }
 
-    public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException, MnemonicException {
+    public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException, MnemonicException, NoSuchAlgorithmException, ReflectiveOperationException {
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
         }
@@ -411,7 +414,8 @@ public class Kit {
         final boolean hadOriginalWallet = wallets.containsKey(walletName);
         final boolean hadOriginalFile = walletFile.exists();
 
-        String seed = getWalletSeed(walletName, prompt);
+        Wallet wallet = getWallet(walletName);
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         long epochSeconds = getWalletCreationTime(walletName);
 
         try {
@@ -423,7 +427,9 @@ public class Kit {
                 atomicMove(walletFile.toPath(), backupFile.toPath(), false);
             }
 
-            restore_from_seed(tempName, seed, epochSeconds, progress);
+            restore_from_entropy(tempName, entropy, epochSeconds, progress);
+            Arrays.fill(entropy, (byte) 0);
+
             progress.event("Restored wallet: " + tempName);
 
             if (restoredFile.exists()) {
@@ -459,6 +465,9 @@ public class Kit {
             }
             throw e;
         }
+        finally {
+            Arrays.fill(entropy, (byte) 0);
+        }
     }
 
     public static synchronized long getWalletCreationTime(String walletName){
@@ -471,7 +480,7 @@ public class Kit {
         return 0;
     }
 
-    public static synchronized String getWalletSeed(String walletName, PasswordPrompt prompt) {
+    public static synchronized List<char[]> getWalletSeed(String walletName, PasswordPrompt prompt) throws NoSuchAlgorithmException, IOException, ReflectiveOperationException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) {
             throw new IllegalArgumentException("Wallet not found: " + walletName);
@@ -491,7 +500,10 @@ public class Kit {
             if (wasEncrypted) {
                 wallet.decrypt(password);
             }
-            return wallet.getKeyChainSeed().getMnemonicString();
+
+            List<char[]> seed = Bip39Util.getSeedPharase(wallet);
+            return seed;
+
         } catch (Wallet.BadWalletEncryptionKeyException e) {
             throw new IllegalArgumentException("Invalid wallet password for: " + walletName, e);
         } finally {
@@ -502,40 +514,55 @@ public class Kit {
     }
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) throws MnemonicException {
+        restore_from_seed_or_entropy(walletName, seed_txt, null, epochSeconds, progress);
+    }
 
+    public static synchronized void restore_from_entropy(String walletName, byte[] entropy, long epochSeconds, InfoHook progress) throws MnemonicException {
+        restore_from_seed_or_entropy(walletName, null, entropy, epochSeconds, progress);
+    }
+
+    private static synchronized void restore_from_seed_or_entropy(String walletName, String seed_txt, byte[] entropy, long epochSeconds, InfoHook progress) throws MnemonicException {
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
         }
 
-        File walletFile    = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+        File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
         if (walletFile.exists() || wallets.containsKey(walletName)) {
             throw new IllegalArgumentException("Wallet with name " + walletName + " already exists");
         }
 
-        MnemonicCode.INSTANCE.check( Arrays.asList( seed_txt.trim().split(" ")  ) );
+        final boolean hasEntropy = entropy != null && entropy.length > 0;
+        final boolean hasMnemonic = seed_txt != null && !seed_txt.trim().isEmpty();
+        if (!hasEntropy && !hasMnemonic) {
+            throw new IllegalArgumentException("Either seed text or entropy must be provided");
+        }
 
         DeterministicSeed seed;
-        if(epochSeconds<=0L){
-            seed = DeterministicSeed.ofMnemonic(seed_txt, "");
-        }else{
-            seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+        if (hasEntropy) {
+            if (epochSeconds <= 0L) {
+                seed = DeterministicSeed.ofEntropy(entropy, "");
+            } else {
+                seed = DeterministicSeed.ofEntropy(entropy, "", Instant.ofEpochSecond(epochSeconds));
+            }
+        } else {
+            MnemonicCode.INSTANCE.check(Arrays.asList(seed_txt.trim().split(" ")));
+            if (epochSeconds <= 0L) {
+                seed = DeterministicSeed.ofMnemonic(seed_txt, "");
+            } else {
+                seed = DeterministicSeed.ofMnemonic(seed_txt, "", Instant.ofEpochSecond(epochSeconds));
+            }
         }
 
         try {
             Wallet wallet = Wallet.fromSeed(NETWORK, seed, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.clearTransactions(0);
 
-
-
             CsvScriptExtension csv = new CsvScriptExtension();
             wallet.addExtension(csv);
-            //magic wallet init keys, or the wallet will not recognise keys that it really owns
             log.info("Current receive address: {}", wallet.currentReceiveAddress().toString());
 
             checkSeqVerRepo.restoreRedeemScripts(wallet, csv);
             attachCsvSupport(wallet, csv);
-
-
 
             final Path f = WALLET_DIR_PATH.resolve("restore" + SPVCHAIN_FILE_POST_FIX);
             Files.deleteIfExists(f);
@@ -547,35 +574,30 @@ public class Kit {
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
 
-            peerGroup.setMinRequiredProtocolVersion(70016);peerGroup.start();
+            peerGroup.setMinRequiredProtocolVersion(70016);
+            peerGroup.start();
 
             peerGroup.addConnectedEventListener((peer, connected) -> {
-                progress.event("connections: ["+peerGroup.numConnectedPeers()+"/"+ peerGroup.getMaxConnections()+"]");
+                progress.event("connections: [" + peerGroup.numConnectedPeers() + "/" + peerGroup.getMaxConnections() + "]");
             });
 
             DownloadTracker listener = new DownloadTracker(progress);
             peerGroup.startBlockChainDownload(listener);
             listener.await();
-            log.info("Wallet restored: {}", walletName+ Instant.now());
-
-            log.info("saving: {}", walletName+ Instant.now());
-
             wallet.saveToFile(walletFile);
-            log.info("saved: {}", walletName+ Instant.now());
 
             peerGroup.stopAsync();
             blockStore.close();
 
-            log.info("peerG blockS stoped: {}", walletName+ Instant.now());
-
-            log.info("adding to kit {}", walletName+ Instant.now());
-            //wallets.put(walletName, wallet);
             loadOrCreateWallet(walletName);
-            log.info("done ", walletName+ Instant.now());
 
         } catch (Exception e) {
-            log.error(Kit.class.getName(), "Error occurred while restoring wallet: "+walletName, e);
-            progress.event("Error occurred while restoring wallet: "+walletName+" "+e.getMessage());
+            log.error(Kit.class.getName(), "Error occurred while restoring wallet: " + walletName, e);
+            progress.event("Error occurred while restoring wallet: " + walletName + " " + e.getMessage());
+        } finally {
+            if (entropy != null) {
+                Arrays.fill(entropy, (byte) 0);
+            }
         }
     }
 
@@ -588,68 +610,61 @@ public class Kit {
      * Write mnemonic words for a wallet to an OutputStream without creating Strings.
      * All buffers used are byte[] and will be zeroed after use.
      */
-    public static synchronized void writeWalletMnemonic(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException {
+    public static synchronized void writeWalletMnemonic(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
 
-        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
-        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
-
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         byte[][] wordBytes = Bip39Util.loadWordlistBytes();
         try {
-            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            int[] indices = Bip39Util.bip39IndicesFromEntropy(entropy);
             Bip39Util.writeMnemonicFromIndices(out, indices, wordBytes);
         } finally {
-            Arrays.fill(seedBytes, (byte)0);
+            Arrays.fill(entropy, (byte)0);
             for (byte[] w : wordBytes) {
                 Arrays.fill(w, (byte)0);
             }
         }
     }
 
-    public static synchronized void writeWalletMnemonicCached(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException {
+    public static synchronized void writeWalletMnemonicCached(OutputStream out, String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
 
-        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
-        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
-
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         byte[][] wordBytes = Bip39Util.getCachedWordlist();
         try {
-            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            int[] indices = Bip39Util.bip39IndicesFromEntropy(entropy);
             Bip39Util.writeMnemonicFromIndices(out, indices, wordBytes);
         } finally {
-            Arrays.fill(seedBytes, (byte)0);
+            Arrays.fill(entropy, (byte)0);
             // do not wipe cached wordBytes
         }
     }
 
-    public static synchronized int[] getMnemonicIndices(String walletName, PasswordPrompt prompt) throws NoSuchAlgorithmException {
+    public static synchronized int[] getMnemonicIndices(String walletName, PasswordPrompt prompt) throws NoSuchAlgorithmException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
-        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
-        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         try {
-            return Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            return Bip39Util.bip39IndicesFromEntropy(entropy);
         } finally {
-            Arrays.fill(seedBytes, (byte)0);
+            Arrays.fill(entropy, (byte)0);
         }
     }
 
-    public static synchronized char[][] getMnemonicCharArrays(String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException {
+    public static synchronized List<char[]> getMnemonicCharArrays(String walletName, PasswordPrompt prompt) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
 
-        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
-        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
-
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         byte[][] wordBytes = Bip39Util.getCachedWordlist();
         try {
-            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
-            char[][] words = Bip39Util.mnemonicCharsFromIndices(indices, wordBytes);
+            int[] indices = Bip39Util.bip39IndicesFromEntropy(entropy);
+            List<char[]> words = Bip39Util.mnemonicCharsFromIndices(indices, wordBytes);
             return words;
         } finally {
-            Arrays.fill(seedBytes, (byte)0);
+            Arrays.fill(entropy, (byte)0);
         }
     }
 
@@ -657,19 +672,17 @@ public class Kit {
      * Fill provided char[][] dest buffers with mnemonic words. Caller must zero dest when done.
      * dest must be non-null, length >= word count, and each dest[i] must be large enough for the word.
      */
-    public static synchronized void fillMnemonicIntoCharBuffers(String walletName, PasswordPrompt prompt, char[][] dest) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException {
+    public static synchronized void fillMnemonicIntoCharBuffers(String walletName, PasswordPrompt prompt, char[][] dest) throws IOException, NoSuchAlgorithmException, java.nio.charset.CharacterCodingException, ReflectiveOperationException, MnemonicException {
         final Wallet wallet = getWallet(walletName);
         if (wallet == null) throw new IllegalArgumentException("Wallet not found: " + walletName);
 
-        byte[] seedBytes = wallet.getKeyChainSeed().getSeedBytes();
-        if (seedBytes == null || seedBytes.length == 0) throw new IllegalStateException("Seed bytes not available");
-
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
         byte[][] wordBytes = Bip39Util.getCachedWordlist();
         try {
-            int[] indices = Bip39Util.bip39IndicesFromSeedBytes(seedBytes);
+            int[] indices = Bip39Util.bip39IndicesFromEntropy(entropy);
             Bip39Util.fillWordCharsFromIndices(indices, wordBytes, dest);
         } finally {
-            Arrays.fill(seedBytes, (byte)0);
+            Arrays.fill(entropy, (byte)0);
         }
     }
 

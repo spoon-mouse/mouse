@@ -1,8 +1,13 @@
 package com.mouse.backend.util;
 
+import org.bitcoinj.crypto.MnemonicException;
+import org.bitcoinj.wallet.DeterministicSeed;
+import org.bitcoinj.wallet.Wallet;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -105,16 +110,17 @@ public final class Bip39Util {
         out.flush();
     }
 
-    public static char[][] mnemonicCharsFromIndices(int[] indices, byte[][] wordBytes) throws java.nio.charset.CharacterCodingException {
+    public static List<char[]> mnemonicCharsFromIndices(int[] indices, byte[][] wordBytes) throws java.nio.charset.CharacterCodingException {
         java.nio.charset.CharsetDecoder decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder();
-        char[][] result = new char[indices.length][];
+        List<char[]> result = new ArrayList();
+
         for (int i = 0; i < indices.length; i++) {
             byte[] wb = wordBytes[indices[i]];
             java.nio.ByteBuffer bb = java.nio.ByteBuffer.wrap(wb);
             java.nio.CharBuffer cb = decoder.decode(bb);
             char[] chars = new char[cb.length()];
             cb.get(chars);
-            result[i] = chars;
+            result.add(chars);
             // clear char buffer
             cb.clear();
         }
@@ -142,6 +148,26 @@ public final class Bip39Util {
 
     public static int[] bip39IndicesFromSeedBytes(byte[] seedBytes) throws NoSuchAlgorithmException {
         return bip39IndicesFromEntropy(seedBytes);
+    }
+
+    public static byte[] entropyFromSeed(DeterministicSeed seed) throws ReflectiveOperationException {
+        if (seed == null) throw new IllegalArgumentException("seed must not be null");
+        Method method = DeterministicSeed.class.getDeclaredMethod("getEntropyBytes");
+        method.setAccessible(true);
+        byte[] entropy = (byte[]) method.invoke(seed);
+        if (entropy == null || entropy.length == 0) {
+            throw new IllegalStateException("No entropy available from wallet seed");
+        }
+        return entropy;
+    }
+
+    public static List<char[]> getSeedPharase(Wallet wallet) throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
+        byte[] entropy = Bip39Util.entropyFromSeed(wallet.getKeyChainSeed());
+        int[] wordIndices = Bip39Util.bip39IndicesFromEntropy(entropy);
+        Arrays.fill(entropy, (byte) 0);
+        List<char[]> words = Bip39Util.mnemonicCharsFromIndices(wordIndices, Bip39Util.getCachedWordlist());
+        Arrays.fill(wordIndices, (byte) 0);
+        return words;
     }
 
 }

@@ -3,7 +3,9 @@ package com.mouse.backend.util;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.wallet.Wallet;
 
+import java.io.IOException;
 import java.nio.CharBuffer;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 
@@ -45,9 +47,9 @@ public record MetaWallet(Wallet wallet, String name, String id) {
         wallet.decrypt(CharBuffer.wrap(password));
     }
 
-    public List<String> getMnemonic() {
+    public List<char[]> getMnemonic() throws ReflectiveOperationException, NoSuchAlgorithmException, IOException {
         if (wallet.getKeyChainSeed() == null) return null;
-        return wallet.getKeyChainSeed().getMnemonicCode();
+        return Bip39Util.getSeedPharase(wallet);
     }
 
     public long getSeedCreationTime() {
