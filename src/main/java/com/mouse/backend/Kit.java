@@ -431,6 +431,8 @@ public class Kit {
                 Files.deleteIfExists(backupFile.toPath());
             }
 
+            Wallet tempWallet = wallets.remove(tempName);
+
             if (wallets.containsKey(walletName)) {
                 wallets.remove(walletName);
             }
