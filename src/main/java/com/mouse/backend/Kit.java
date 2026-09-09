@@ -393,80 +393,40 @@ public class Kit {
     }
 
     public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException, MnemonicException, NoSuchAlgorithmException, ReflectiveOperationException {
+
+        final Wallet wallet = getWallet(walletName);
+        if( wallet == null) {
+            throw new IllegalArgumentException("Wallet not found: " + walletName);
+        }
+
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
         }
 
-        if (prompt == null) {
-            throw new IllegalArgumentException("Password prompt is required for wallet restore: " + walletName);
-        }
-
-        File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-        File backupFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX + ".restore-backup-" + UUID.randomUUID());
-        String tempName = walletName + "_restore_" + UUID.randomUUID().toString().replace("-", "");
-        File restoredFile = new File(WALLET_DIR_PATH.toFile(), tempName + WALLET_FILE_POST_FIX);
-
-        final boolean hadOriginalWallet = wallets.containsKey(walletName);
-        final boolean hadOriginalFile = walletFile.exists();
+        String tempName = walletName + "_restore_" + UUID.randomUUID();
 
         byte[] entropy = getWalletEntropy(walletName, prompt);
         long epochSeconds = getWalletCreationTime(walletName);
 
         try {
-            if (hadOriginalWallet) {
-                closeWallet(walletName);
-            }
-
-            if (hadOriginalFile) {
-                atomicMove(walletFile.toPath(), backupFile.toPath(), false);
-            }
-
             restore_from_entropy(tempName, entropy, epochSeconds, progress);
             Arrays.fill(entropy, (byte) 0);
 
-            progress.event("Restored wallet: " + tempName);
+            File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
+            File backupFile = new File(WALLET_DIR_PATH.toFile(), walletName + "-backup-" + UUID.randomUUID() + WALLET_FILE_POST_FIX);
+            File tempFile = new File(WALLET_DIR_PATH.toFile(), tempName + WALLET_FILE_POST_FIX);
 
-            if (restoredFile.exists()) {
-                atomicMove(restoredFile.toPath(), walletFile.toPath(), true);
-                fsyncDirectory(WALLET_DIR_PATH);
-            }
+            atomicMove(walletFile.toPath(), backupFile.toPath(), true);
+            atomicMove(tempFile.toPath(), walletFile.toPath(), true);
+            fsyncDirectory(WALLET_DIR_PATH);
 
-            if (backupFile.exists()) {
-                Files.deleteIfExists(backupFile.toPath());
-            }
-
-            wallets.remove(tempName);
-
-            if (wallets.containsKey(walletName)) {
-                wallets.remove(walletName);
-            }
-            loadOrCreateWallet(walletName);
-            progress.event("wallet restore complete: " + walletName);
-        } catch (IOException | MnemonicException | UnreadableWalletException | RuntimeException e) {
-            if (restoredFile.exists()) {
-                try {
-                    Files.deleteIfExists(restoredFile.toPath());
-                } catch (IOException ignored) {
-                    log.warn(Kit.class.getName(), "Could not remove temp restored wallet after failure", ignored);
-                }
-            }
-            if (backupFile.exists()) {
-                try {
-                    atomicMove(backupFile.toPath(), walletFile.toPath(), true);
-                } catch (IOException rollbackFailure) {
-                    log.error(Kit.class.getName(), "Failed to restore backup wallet after restore failure", rollbackFailure);
-                }
-            }
-            throw e;
+        } catch ( MnemonicException | RuntimeException e) {
+            log.error("Failed to restore wallet: " + tempName, e);
         }
         finally {
             Arrays.fill(entropy, (byte) 0);
-            try {
-                Files.deleteIfExists(restoredFile.toPath());
-            } catch (IOException ignored) {
-                log.warn(Kit.class.getName(), "Could not remove temp restored wallet on cleanup for " + walletName, ignored);
-            }
         }
+        progress.event("Restored wallet: " + tempName);
     }
 
     public static synchronized long getWalletCreationTime(String walletName){
@@ -601,7 +561,6 @@ public class Kit {
 
             CsvScriptExtension csv = new CsvScriptExtension();
             wallet.addExtension(csv);
-            log.info("Current receive address: {}", wallet.currentReceiveAddress().toString());
 
             checkSeqVerRepo.restoreRedeemScripts(wallet, csv);
             attachCsvSupport(wallet, csv);
@@ -626,6 +585,7 @@ public class Kit {
             DownloadTracker listener = new DownloadTracker(progress);
             peerGroup.startBlockChainDownload(listener);
             listener.await();
+
             wallet.saveToFile(walletFile);
 
             peerGroup.stopAsync();
