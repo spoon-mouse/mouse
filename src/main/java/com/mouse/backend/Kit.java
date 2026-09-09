@@ -69,6 +69,17 @@ public class Kit {
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
     private static final Pattern ALLOWED_WALLET_NAME = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?");
+    private static final Object WALLET_STATE_LOCK = new Object();
+
+    private static boolean isInitialized() {
+        return instance != null && peerGroup != null && chain != null && blockStore != null;
+    }
+
+    private static void ensureInitialized(String operation) {
+        if (!isInitialized()) {
+            throw new IllegalStateException("Wallet backend not initialized; cannot " + operation);
+        }
+    }
 
     private Kit(BlockStore blockStore, org.bitcoinj.core.BlockChain chain, PeerGroup peerGroup) {
         this.blockStore = blockStore;
@@ -142,9 +153,16 @@ public class Kit {
 
 
     public static synchronized Wallet reName(String walletName, String newName) throws UnreadableWalletException, IOException {
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
 
         if (!checkWalletName(newName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + newName);
+        }
+
+        if (walletName.equals(newName)) {
+            throw new IllegalArgumentException("Wallet name must differ from current name");
         }
 
         if (wallets.containsKey(newName)) {
@@ -154,28 +172,66 @@ public class Kit {
         File oldWalletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
         File newWalletFile = new File(WALLET_DIR_PATH.toFile(), newName + WALLET_FILE_POST_FIX);
 
+        if (!oldWalletFile.exists() && !wallets.containsKey(walletName)) {
+            throw new IllegalArgumentException("Wallet with name " + walletName + " does not exist");
+        }
+
         if (newWalletFile.exists()) {
             throw new IllegalArgumentException("Wallet file for " + newName + " already exists");
         }
 
-        // 1. Close current wallet to release file locks and ensure it's saved
+        Wallet originalWallet = wallets.get(walletName);
         closeWallet(walletName);
 
-        // 2. Perform atomic move
+        Path oldPath = oldWalletFile.toPath();
+        Path tmpPath = WALLET_DIR_PATH.resolve(newName + WALLET_FILE_POST_FIX + ".rename-" + UUID.randomUUID());
+        boolean movedToTemp = false;
+        boolean movedToFinal = false;
+
         try {
-            Files.move(oldWalletFile.toPath(), newWalletFile.toPath(), StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            log.error(Kit.class.getName(), "Atomic rename failed, attempting fallback move", e);
             try {
-                Files.move(oldWalletFile.toPath(), newWalletFile.toPath());
-            } catch (IOException ex) {
-                // If both fail, try to restore the original wallet in memory
-                loadOrCreateWallet(walletName);
-                throw new IOException("Failed to rename wallet file: " + ex.getMessage(), ex);
+                Files.move(oldPath, tmpPath, StandardCopyOption.ATOMIC_MOVE);
+                movedToTemp = true;
+            } catch (IOException atomicMoveFailure) {
+                log.warn(Kit.class.getName(), "Atomic move for wallet rename failed, falling back to regular move", atomicMoveFailure);
+                Files.move(oldPath, tmpPath);
+                movedToTemp = true;
+            }
+
+            try {
+                Files.move(tmpPath, newWalletFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                movedToFinal = true;
+            } catch (IOException finalMoveFailure) {
+                log.warn(Kit.class.getName(), "Atomic final move for wallet rename failed, falling back to regular move", finalMoveFailure);
+                Files.move(tmpPath, newWalletFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                movedToFinal = true;
+            }
+        } catch (IOException e) {
+            if (movedToTemp && !movedToFinal && Files.exists(tmpPath)) {
+                try {
+                    Files.move(tmpPath, oldPath, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException rollbackFailure) {
+                    log.error(Kit.class.getName(), "Failed to restore wallet file after rename rollback", rollbackFailure);
+                }
+            }
+            if (originalWallet != null) {
+                try {
+                    loadOrCreateWallet(walletName);
+                } catch (UnreadableWalletException | IOException ex) {
+                    log.error(Kit.class.getName(), "Failed to restore wallet in memory after rename failure", ex);
+                }
+            }
+            throw new IOException("Failed to rename wallet file: " + e.getMessage(), e);
+        } finally {
+            if (!movedToFinal && Files.exists(tmpPath)) {
+                try {
+                    Files.deleteIfExists(tmpPath);
+                } catch (IOException ignored) {
+                    // best effort cleanup only; the main exception path is already handled above
+                }
             }
         }
 
-        // 3. Load the newly named wallet
         return loadOrCreateWallet(newName);
     }
 
@@ -253,6 +309,7 @@ public class Kit {
      * Does NOT stop the shared node — other wallets keep running.
      */
     public static synchronized void closeWallet(String walletName) throws IOException {
+        ensureInitialized("close wallet");
         final Wallet wallet = wallets.get(walletName);
         if (wallet == null) return;
 
@@ -266,8 +323,21 @@ public class Kit {
     public static void deleteWallet(String walletName) throws IOException {
         closeWallet(walletName);
         File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-        if (walletFile.exists()) {
-            walletFile.delete();
+        if (!walletFile.exists()) {
+            return;
+        }
+
+        Path tempDeletePath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX + ".delete-" + UUID.randomUUID());
+        try {
+            try {
+                Files.move(walletFile.toPath(), tempDeletePath, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicMoveFailure) {
+                log.warn(Kit.class.getName(), "Atomic delete move failed, falling back to normal move", atomicMoveFailure);
+                Files.move(walletFile.toPath(), tempDeletePath);
+            }
+            Files.deleteIfExists(tempDeletePath);
+        } catch (IOException e) {
+            throw new IOException("Failed to delete wallet file: " + walletName, e);
         }
     }
 
@@ -277,25 +347,31 @@ public class Kit {
      * Saves every currently loaded wallet first.
      */
     public static synchronized void stop() {
+        if (!isInitialized()) {
+            instance = null;
+            return;
+        }
 
-        for (String walletName : wallets.keySet()) {
+        for (String walletName : new ArrayList<>(wallets.keySet())) {
             try {
                 closeWallet(walletName);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to close wallet during shutdown: " + walletName, e);
             }
         }
-
 
         peerGroup.stopAsync();
 
         try {
             blockStore.close();
         } catch (BlockStoreException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to close block store during shutdown", e);
         }
 
         instance = null;
+        peerGroup = null;
+        chain = null;
+        blockStore = null;
     }
 
     public static synchronized void restoreWallet(String walletName, PasswordPrompt prompt,  InfoHook progress) throws UnreadableWalletException, IOException, MnemonicException {
@@ -334,25 +410,32 @@ public class Kit {
 
     public static synchronized String getWalletSeed(String walletName, PasswordPrompt prompt) {
         final Wallet wallet = getWallet(walletName);
-        if (wallet == null) return "";
-        String seed="";
-        CharArrayCharSequence password=null;
-        if(wallet.isEncrypted()){
+        if (wallet == null) {
+            throw new IllegalArgumentException("Wallet not found: " + walletName);
+        }
+
+        final boolean wasEncrypted = wallet.isEncrypted();
+        CharArrayCharSequence password = null;
+
+        if (wasEncrypted) {
+            if (prompt == null) {
+                throw new IllegalArgumentException("Password prompt is required for encrypted wallet: " + walletName);
+            }
             password = CharArrayCharSequence.of(prompt.getPassword());
         }
+
         try {
-            if(wallet.isEncrypted()){
+            if (wasEncrypted) {
                 wallet.decrypt(password);
             }
-            seed =  wallet.getKeyChainSeed().getMnemonicString();
-
-        }catch (Wallet.BadWalletEncryptionKeyException e){
-        }finally {
-            if( ! wallet.isEncrypted() && password!=null){
+            return wallet.getKeyChainSeed().getMnemonicString();
+        } catch (Wallet.BadWalletEncryptionKeyException e) {
+            throw new IllegalArgumentException("Invalid wallet password for: " + walletName, e);
+        } finally {
+            if (wasEncrypted && password != null) {
                 wallet.encrypt(password);
             }
         }
-        return seed;
     }
 
     public static synchronized void restore_from_seed(String walletName, String seed_txt, long epochSeconds, InfoHook progress) throws MnemonicException {
@@ -444,14 +527,30 @@ public class Kit {
         }
 
         final Wallet wallet = getWallet(walletName);
-        if (wallet == null) return;
+        if (wallet == null) {
+            return;
+        }
+
+        Path walletPath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX);
+        Path tmpWalletPath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX + ".tmp-" + UUID.randomUUID());
 
         try {
-            File walletFile = new File(WALLET_DIR_PATH.toFile(), walletName + WALLET_FILE_POST_FIX);
-            wallet.saveToFile(walletFile);
+            wallet.saveToFile(tmpWalletPath.toFile());
+            try {
+                Files.move(tmpWalletPath, walletPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicFailure) {
+                log.warn(Kit.class.getName(), "Atomic wallet save failed, falling back to regular move for " + walletName, atomicFailure);
+                Files.move(tmpWalletPath, walletPath, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
-            log.error(Kit.class.getName(), "Error occurred while saving wallet: "+walletName, e);
+            log.error(Kit.class.getName(), "Error occurred while saving wallet: " + walletName, e);
             throw new RuntimeException(e);
+        } finally {
+            try {
+                Files.deleteIfExists(tmpWalletPath);
+            } catch (IOException ignored) {
+                // best effort cleanup after move or fallback path
+            }
         }
     }
 
