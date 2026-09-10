@@ -194,4 +194,8 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         return (confidence != null && confidence.getSource() != null) ? confidence.getSource().name() : "";
     }
 
+    public String memo() {
+        return tx.getMemo();
+    }
+
 }
