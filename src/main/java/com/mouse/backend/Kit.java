@@ -611,7 +611,11 @@ public class Kit {
     }
 
 
-    private static synchronized void save(String walletName) {
+    private static void save() {
+        wallets.keySet().stream().forEach( k -> {save(k);});
+    }
+
+    public static synchronized void save(String walletName) {
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
         }
@@ -622,27 +626,13 @@ public class Kit {
         }
 
         Path walletPath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX);
-        Path tmpWalletPath = WALLET_DIR_PATH.resolve(walletName + WALLET_FILE_POST_FIX + ".tmp-" + UUID.randomUUID());
 
         try {
-            wallet.saveToFile(tmpWalletPath.toFile());
-            fsyncPath(tmpWalletPath);
-            atomicMove(tmpWalletPath, walletPath, true);
-            fsyncDirectory(WALLET_DIR_PATH);
+            wallet.saveToFile(walletPath.toFile());
         } catch (IOException e) {
             log.error("Error occurred while saving wallet: {}", walletName, e);
             throw new RuntimeException(e);
-        } finally {
-            try {
-                Files.deleteIfExists(tmpWalletPath);
-            } catch (IOException ignored) {
-                // best effort cleanup after move or fallback path
-            }
         }
-    }
-
-    public static void save() {
-        wallets.keySet().stream().forEach( k -> {save(k);});
     }
 
     public static void cleanup() {
