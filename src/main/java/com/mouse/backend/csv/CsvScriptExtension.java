@@ -1,7 +1,5 @@
 package com.mouse.backend.csv;
 
-import com.mouse.backend.util.Config;
-import com.mouse.backend.util.KvStringSplit;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.wallet.Wallet;
 import org.bitcoinj.wallet.WalletExtension;
@@ -9,9 +7,7 @@ import org.bitcoinj.wallet.WalletExtension;
 import java.io.*;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
-import java.util.Map;
 
 public class CsvScriptExtension implements WalletExtension {
 

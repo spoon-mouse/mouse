@@ -71,7 +71,6 @@ public class Kit {
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
     private static final Pattern ALLOWED_WALLET_NAME = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?");
-    private static final Object WALLET_STATE_LOCK = new Object();
 
     private static boolean isInitialized() {
         return instance != null && peerGroup != null && chain != null && blockStore != null;
@@ -313,12 +312,9 @@ public class Kit {
     }
 
     public static Wallet getWallet(String walletName) {
-        return wallet(walletName);
-    }
-
-    public static Wallet wallet(String walletName) {
         return wallets.get(walletName);
     }
+
 
     /**
      * Detaches a wallet from the shared chain/peer group and saves it to disk.

@@ -52,7 +52,7 @@ public class Txn {
     public Txn(String name) {
         walletName = name;
         peerGroup = Kit.peerGroup();
-        wallet = Kit.wallet(walletName);
+        wallet = Kit.getWallet(walletName);
         setCoinSelector(CoinSelectOption.DEFAULT);
     }
 

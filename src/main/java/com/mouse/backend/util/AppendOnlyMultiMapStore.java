@@ -280,9 +280,6 @@ public class AppendOnlyMultiMapStore implements Closeable {
 
     public void restoreRedeemScripts(Wallet wallet, CsvScriptExtension csv) {
 
-        //data.keySet().stream().forEach(key -> Kit.getMetaWalletByAddress(key).stream().forEach( w -> log.info(key.toString()+" "+w.name()) )   );
-        //data.keySet().stream().map(wallet::parseAddress).forEach(address -> log.info("Address: {} is mine: {}", address, wallet.isAddressMine(address)));
-
         data.keySet().stream().map(wallet::parseAddress).filter(wallet::isAddressMine).forEach(address ->
                 data.get(address.toString()).forEach(script -> {
                     csv.addRedeemScript(script);
@@ -291,10 +288,4 @@ public class AppendOnlyMultiMapStore implements Closeable {
         );
     }
 
-    public void logInfo() {
-        data.entrySet().forEach(entry -> {
-            log.info("Key: {}", entry.getKey());
-            entry.getValue().forEach(value -> log.info("  Value: {}", value));
-        });
-    }
 }
