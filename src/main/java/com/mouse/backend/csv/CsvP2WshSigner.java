@@ -57,7 +57,7 @@ public class CsvP2WshSigner implements TransactionSigner {
                     continue;
                 }
 
-                log.info("redeemScript: "+redeemScript+ " input: "+input+" connectedOutput: "+connectedOutput);
+                log.info("redeemScript: {} input: {} connectedOutput: {}", redeemScript, input, connectedOutput);
 
 
                 // must set sequence BEFORE signing (it's covered by the sighash)
@@ -71,7 +71,7 @@ public class CsvP2WshSigner implements TransactionSigner {
 
                 ECKey key = keyBag.findKeyFromPubKeyHash(pubKeyHash, null);
                 if (key == null) {
-                    log.error("no key for pubKeyHash: "+pubKeyHash);
+                    log.error("no key for pubKeyHash: {}", pubKeyHash);
                     continue; // can't sign this one, not our key
                 }
 
@@ -88,7 +88,7 @@ public class CsvP2WshSigner implements TransactionSigner {
                 TransactionInput signedInput = tx.getInput(i).withWitness(witness);
                 tx.replaceInput(i, signedInput);
 
-                log.info("signed with: "+redeemScript);
+                log.info("signed with: {}", redeemScript);
             }
         }
         return true;

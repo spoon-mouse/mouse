@@ -164,7 +164,7 @@ public class Kit {
                 try {
                     loadOrCreateWallet(walletName);
                 } catch (UnreadableWalletException | IOException | IllegalStateException e) {
-                    log.error(Kit.class.getName(), "loading wallet " + walletName + " failed: ", e);
+                    log.error("loading wallet {} failed", walletName, e);
                 }
             });
 
@@ -172,13 +172,13 @@ public class Kit {
             peerGroup.startBlockChainDownload(new DownloadProgressTracker() {
                 @Override
                 protected void doneDownload() {
-                    log.info(Kit.class.getName(), "Chain Sync complete");
+                    log.info("Chain Sync complete");
                 }
             });
 
 
         }catch (IOException | BlockStoreException e) {
-            log.error(Kit.class.getName(), "Error occurred while starting the node: ", e);
+            log.error("Error occurred while starting the node", e);
         }
 
     }
@@ -229,14 +229,14 @@ public class Kit {
                 try {
                     atomicMove(backupPath, oldPath, false);
                 } catch (IOException rollbackFailure) {
-                    log.error(Kit.class.getName(), "Failed to restore wallet file after rename rollback", rollbackFailure);
+                    log.error("Failed to restore wallet file after rename rollback", rollbackFailure);
                 }
             }
             if (originalWallet != null) {
                 try {
                     loadOrCreateWallet(walletName);
                 } catch (UnreadableWalletException | IOException ex) {
-                    log.error(Kit.class.getName(), "Failed to restore wallet in memory after rename failure", ex);
+                    log.error("Failed to restore wallet in memory after rename failure", ex);
                 }
             }
             throw new IOException("Failed to rename wallet file: " + e.getMessage(), e);
@@ -245,7 +245,7 @@ public class Kit {
         try {
             Files.deleteIfExists(backupPath);
         } catch (IOException e) {
-            log.warn(Kit.class.getName(), "Rename succeeded but backup cleanup failed for " + walletName, e);
+            log.warn("Rename succeeded but backup cleanup failed for {}", walletName, e);
         }
 
         return loadOrCreateWallet(newName);
@@ -288,7 +288,7 @@ public class Kit {
             chain.addWallet(wallet);
             peerGroup.addWallet(wallet);
         } catch (Exception e) {
-            log.error(Kit.class.getName(), "Error occurred while attaching wallet to chain/peer group: " + walletName, e);
+            log.error("Error occurred while attaching wallet to chain/peer group: {}", walletName, e);
         }
 
         wallets.put(walletName, wallet);
@@ -352,7 +352,7 @@ public class Kit {
                 try {
                     atomicMove(tempDeletePath, walletFile.toPath(), false);
                 } catch (IOException rollbackFailure) {
-                    log.error(Kit.class.getName(), "Failed to restore wallet file after delete rollback", rollbackFailure);
+                    log.error("Failed to restore wallet file after delete rollback", rollbackFailure);
                 }
             }
             throw new IOException("Failed to delete wallet file: " + walletName, e);
@@ -427,7 +427,7 @@ public class Kit {
 
             backupFile.delete();
         } catch ( MnemonicException | RuntimeException e) {
-            log.error("Failed to restore wallet: " + tempName, e);
+            log.error("Failed to restore wallet: {}", tempName, e);
         }
         finally {
             Arrays.fill(entropy, (byte) 0);
@@ -600,7 +600,7 @@ public class Kit {
             loadOrCreateWallet(walletName);
 
         } catch (Exception e) {
-            log.error(Kit.class.getName(), "Error occurred while restoring wallet: " + walletName, e);
+            log.error("Error occurred while restoring wallet: {}", walletName, e);
             progress.event("Error occurred while restoring wallet: " + walletName + " " + e.getMessage());
         } finally {
             if (entropy != null) {
@@ -722,7 +722,7 @@ public class Kit {
             atomicMove(tmpWalletPath, walletPath, true);
             fsyncDirectory(WALLET_DIR_PATH);
         } catch (IOException e) {
-            log.error(Kit.class.getName(), "Error occurred while saving wallet: " + walletName, e);
+            log.error("Error occurred while saving wallet: {}", walletName, e);
             throw new RuntimeException(e);
         } finally {
             try {
@@ -780,7 +780,7 @@ public class Kit {
             final AddressScript r = CsvUtil.importFromQR(qr);
             saveRedeemScript(r.address(), r.script());
         }catch (Exception e) {
-            log.error(Kit.class.getName(), "Error occurred while importing QR code: "+qr, e);
+            log.error("Error occurred while importing QR code: {}", qr, e);
             throw e;
         }
     }
