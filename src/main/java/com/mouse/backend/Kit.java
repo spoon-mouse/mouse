@@ -140,13 +140,15 @@ public class Kit {
         try {
             Files.createDirectories(WALLET_DIR_PATH);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.error("Failed to create wallet directory {}", WALLET_DIR_PATH, e);
+            throw new RuntimeException("Failed to create wallet directory: " + WALLET_DIR_PATH, e);
         }
 
         try {
             checkSeqVerRepo = new AppendOnlyMultiMapStore(WALLET_DIR_PATH+"/checkSeqVer.log");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.error("Failed to initialize append-only wallet log in {}", WALLET_DIR_PATH, e);
+            throw new RuntimeException("Failed to initialize append-only wallet log", e);
         }
 
 
@@ -469,6 +471,7 @@ public class Kit {
             return seed;
 
         } catch (Wallet.BadWalletEncryptionKeyException e) {
+            log.error("Invalid wallet password for wallet {} while reading seed", walletName, e);
             throw new IllegalArgumentException("Invalid wallet password for: " + walletName, e);
         } finally {
             if (wasEncrypted && password != null) {
@@ -504,6 +507,7 @@ public class Kit {
             return entropy;
 
         } catch (Wallet.BadWalletEncryptionKeyException e) {
+            log.error("Invalid wallet password for wallet {} while reading entropy", walletName, e);
             throw new IllegalArgumentException("Invalid wallet password for: " + walletName, e);
         } finally {
             if (wasEncrypted && password != null) {
@@ -810,6 +814,7 @@ public class Kit {
             } catch (IllegalStateException e) {
                 if (e.getMessage() == null ||
                         !e.getMessage().startsWith("Inconsistent spent tx:")) {
+                    log.error("Unexpected wallet cleanup failure for wallet {}", walletName, e);
                     throw e;
                 }
 
@@ -862,6 +867,7 @@ public class Kit {
             CompletableFuture.allOf(sent).get(30, TimeUnit.SECONDS);
             progress.event("broadcast txn:"+sent.length+" connections:"+peerGroup().numConnectedPeers());
         }catch (Exception e){
+            log.warn("Broadcast timeout while re-casting pending transactions for wallet {}", walletName, e);
             progress.event("broadcast timeout");
         }
 
