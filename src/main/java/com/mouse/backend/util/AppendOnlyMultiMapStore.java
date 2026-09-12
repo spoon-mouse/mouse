@@ -230,6 +230,7 @@ public class AppendOnlyMultiMapStore implements Closeable {
             try {
                 Files.move(tempFile, logPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException e) {
+                log.warn("Atomic move not supported while compacting {}, falling back to normal move", logPath, e);
                 Files.move(tempFile, logPath, StandardCopyOption.REPLACE_EXISTING);
             }
             openWriterForAppend();

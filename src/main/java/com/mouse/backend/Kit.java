@@ -90,6 +90,7 @@ public class Kit {
                 Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
             }
         } catch (IOException atomicFailure) {
+            log.warn("Atomic move failed from {} to {} (replaceExisting={}), retrying without ATOMIC_MOVE", from, to, replaceExisting, atomicFailure);
             if (replaceExisting) {
                 Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
             } else {
@@ -102,6 +103,7 @@ public class Kit {
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
             channel.force(true);
         } catch (IOException ignored) {
+            log.debug("Could not fsync path {} (best effort)", path, ignored);
             // Some filesystems do not support fsync on the target, so we fail open for durability.
         }
     }
@@ -110,6 +112,7 @@ public class Kit {
         try (FileChannel channel = FileChannel.open(directory, StandardOpenOption.READ)) {
             channel.force(true);
         } catch (IOException ignored) {
+            log.debug("Could not fsync directory {} (best effort)", directory, ignored);
             // Best-effort fsync for parent directories.
         }
     }

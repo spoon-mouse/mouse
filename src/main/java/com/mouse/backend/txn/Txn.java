@@ -20,6 +20,8 @@ import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.signers.TransactionSigner;
 import org.bitcoinj.wallet.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -32,6 +34,8 @@ import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEE
 import static com.mouse.backend.util.Config.NETWORK;
 
 public class Txn {
+    private static final Logger log = LoggerFactory.getLogger(Txn.class);
+
     public static final int MIN_PEERS_CAST = 3;
     public static final int CAST_TIMEOUT = 10;
     public static final int RELAY_TIMEOUT = 10;
@@ -87,6 +91,7 @@ public class Txn {
         try{
             address = wallet.parseAddress( addressTxt );
         }catch (AddressFormatException e){
+            log.error("Failed to parse address '{}' for wallet '{}'", addressTxt, walletName, e);
             throw new  AddressFormatException("Bad address");
         }
         return this;
@@ -206,7 +211,9 @@ public class Txn {
         progress.event("broadcasting...");
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
-        } catch (TimeoutException | InterruptedException | ExecutionException e) { }
+        } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            log.error("Transaction broadcast failed for wallet '{}' and tx '{}'", walletName, tx.getTxId(), e);
+        }
 
         return tx;
     }
@@ -222,6 +229,7 @@ public class Txn {
                 try {
                     wallet.decrypt(passwordSeq);
                 }catch (Wallet.BadWalletEncryptionKeyException e){
+                    log.error("Failed to decrypt wallet '{}' during transaction signing", walletName, e);
                     throw new Wallet.BadWalletEncryptionKeyException(e);
                 }
             }

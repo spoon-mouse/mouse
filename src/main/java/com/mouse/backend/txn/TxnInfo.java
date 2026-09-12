@@ -7,6 +7,8 @@ import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.TransactionConfidence;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.wallet.Wallet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.stream.Stream;
 import static com.mouse.backend.util.Config.NETWORK;
 
 public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxType type, long total, long fee) {
+    private static final Logger log = LoggerFactory.getLogger(TxnInfo.class);
 
     public static TxnInfo get(Transaction txn, Wallet wallet){
 
@@ -71,6 +74,7 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         try {
             return wallet.isAddressMine(o.getScriptPubKey().getToAddress(NETWORK));
         }catch (Exception e){
+            log.warn("Failed to determine whether output belongs to wallet for tx {}", id, e);
             return false;
         }
     }
@@ -83,6 +87,7 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         try{
             return o.getScriptPubKey().getToAddress(NETWORK).toString();
         }catch (Exception e){
+            log.warn("Failed to resolve script output to address", e);
             return e.getMessage();
         }
     }
@@ -172,6 +177,7 @@ public record TxnInfo(Wallet wallet, Transaction tx, String id, long amount, TxT
         try {
             return tx.updateTime().get().toEpochMilli();
         } catch (Exception e) {
+            log.warn("Failed to resolve transaction timestamp for tx {}", id, e);
             return 0L;
         }
     }
