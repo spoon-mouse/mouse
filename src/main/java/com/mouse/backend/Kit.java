@@ -43,7 +43,7 @@ import static java.util.stream.Collectors.toList;
 import static org.bitcoinj.script.ScriptBuilder.createP2WSHOutputScript;
 
 import com.mouse.backend.util.Bip39Util;
-import java.io.OutputStream;
+
 import java.security.NoSuchAlgorithmException;
 
 /**
@@ -191,7 +191,29 @@ public class Kit {
            return ALLOWED_WALLET_NAME.matcher(walletName).matches();
     }
 
+    public static synchronized void reName(String walletName, String newName) {
+        if (!checkWalletName(walletName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + walletName);
+        }
 
+        if (!checkWalletName(newName)) {
+            throw new IllegalArgumentException("Invalid wallet name: " + newName);
+        }
+
+        if (walletName.equals(newName)) {
+            throw new IllegalArgumentException("Wallet name must differ from current name");
+        }
+
+        if (wallets.containsKey(newName)) {
+            throw new IllegalArgumentException("Wallet with name " + newName + " already exists");
+        }
+
+        Wallet wallet = wallets.get(walletName);
+        wallet.setDescription(newName);
+
+    }
+
+/*
     public static synchronized Wallet reName(String walletName, String newName) throws UnreadableWalletException, IOException {
         if (!checkWalletName(walletName)) {
             throw new IllegalArgumentException("Invalid wallet name: " + walletName);
@@ -254,7 +276,7 @@ public class Kit {
 
         return loadOrCreateWallet(newName);
     }
-
+*/
 
     /**
      * Loads an existing wallet file, or creates a fresh wallet if none exists yet,
@@ -282,6 +304,7 @@ public class Kit {
         } else {
             wallet = Wallet.createDeterministic(NETWORK, ScriptType.P2WPKH, KeyChainGroupStructure.BIP32);
             wallet.addExtension(csv);
+            wallet.setDescription(walletName);
             wallet.saveToFile(walletFile);
             wallet.autosaveToFile(walletFile, autosaveDuration, null);
         }
@@ -907,10 +930,10 @@ public class Kit {
     }
 
 
-    public void walletUpdated(InfoHook progress){
-        wallets.keySet().forEach(k -> walletUpdated(k, progress));
+    public void walletUpdated_Listener(InfoHook progress){
+        wallets.keySet().forEach(k -> walletUpdated_Listener(k, progress));
     }
-    public static void walletUpdated(String walletName, InfoHook progress){
+    public static void walletUpdated_Listener(String walletName, InfoHook progress){
         wallets.get(walletName).addChangeEventListener((wallet) -> {
             progress.event(walletName+" updated");
         });

@@ -118,6 +118,25 @@ public class Txn {
         }
     }
 
+    protected void ensureLocalConfidenceSource(Transaction transaction) {
+        if (transaction == null) {
+            return;
+        }
+
+        TransactionConfidence confidence = transaction.getConfidence();
+        if (confidence == null) {
+            return;
+        }
+
+        if (confidence.getSource() == TransactionConfidence.Source.UNKNOWN) {
+            try {
+                confidence.setSource(TransactionConfidence.Source.SELF);
+            } catch (IllegalStateException e) {
+                log.warn("Transaction {} already had a confidence source of {} while being marked as local", transaction.getTxId(), confidence.getSource(), e);
+            }
+        }
+    }
+
 
     protected Transaction selectTxnInputs(SendRequest sendRequest) throws InsufficientMoneyException, IllegalAmountException{
 
@@ -205,6 +224,7 @@ public class Txn {
     }
 
     public Transaction broadcastTx(Transaction tx, InfoHook progress) {
+        ensureLocalConfidenceSource(tx);
         wallet.maybeCommitTx(tx);
 
         TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
