@@ -173,13 +173,7 @@ public class Kit {
             });
 
             peerGroup.start();
-            peerGroup.startBlockChainDownload(new DownloadProgressTracker() {
-                @Override
-                protected void doneDownload() {
-                    log.info("Chain Sync complete");
-                }
-            });
-
+            peerGroup.startBlockChainDownload(new DownloadProgressTracker());
 
         }catch (IOException | BlockStoreException e) {
             log.error("Error occurred while starting the node", e);
