@@ -157,6 +157,7 @@ public class Kit {
             org.bitcoinj.core.BlockChain chain = new org.bitcoinj.core.BlockChain(NETWORK, blockStore);
 
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+            peerGroup.setMaxConnections(Config.MAX_PEERS);
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
 
             instance = new Kit(blockStore, chain, peerGroup);
@@ -598,10 +599,10 @@ public class Kit {
 
             BlockChain chain = new BlockChain(NETWORK, wallet, blockStore);
             PeerGroup peerGroup = new PeerGroup(NETWORK, chain);
+            peerGroup.setMaxConnections(Config.MAX_PEERS);
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
             peerGroup.addWallet(wallet);
 
-            peerGroup.setMinRequiredProtocolVersion(70016);
             peerGroup.start();
 
             peerGroup.addConnectedEventListener((peer, connected) -> {
@@ -613,6 +614,9 @@ public class Kit {
             listener.await();
 
             wallet.saveToFile(walletFile);
+
+            //peerGroup.removeWallet(wallet);
+            //chain.removeWallet(wallet);
 
             peerGroup.stopAsync();
             blockStore.close();

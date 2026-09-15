@@ -31,12 +31,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static com.mouse.backend.csv.CsvScriptExtension.COM_SPOON_MOUSE_CSV_REDEEM_SCRIPTS;
+import static com.mouse.backend.util.Config.MIN_PEERS_TO_CAST_TXN;
 import static com.mouse.backend.util.Config.NETWORK;
 
 public class Txn {
     private static final Logger log = LoggerFactory.getLogger(Txn.class);
 
-    public static final int MIN_PEERS_CAST = 3;
     public static final int CAST_TIMEOUT = 10;
     public static final int RELAY_TIMEOUT = 10;
     protected Wallet wallet;
@@ -77,8 +77,8 @@ public class Txn {
     }
 
     public void checkConnection() throws ConnectException {
-        if(peerGroup.numConnectedPeers() < MIN_PEERS_CAST) {
-            throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_CAST+"]");
+        if(peerGroup.numConnectedPeers() < MIN_PEERS_TO_CAST_TXN) {
+            throw new ConnectException("Bad connection try again later ["+ peerGroup.numConnectedPeers() + "/" + MIN_PEERS_TO_CAST_TXN+"]");
         }
     }
 
@@ -227,7 +227,7 @@ public class Txn {
         ensureLocalConfidenceSource(tx);
         wallet.maybeCommitTx(tx);
 
-        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_CAST, false);
+        TransactionBroadcast txnCast = peerGroup.broadcastTransaction(tx, MIN_PEERS_TO_CAST_TXN, false);
         progress.event("broadcasting...");
         try {
             txnCast.awaitSent().get(CAST_TIMEOUT, TimeUnit.SECONDS);
