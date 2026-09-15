@@ -1,7 +1,7 @@
 package com.mouse.backend.util;
 
-import com.mouse.backend.Kit;
 import com.mouse.backend.csv.CsvScriptExtension;
+import org.bitcoinj.base.Address;
 import org.bitcoinj.wallet.Wallet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,6 +281,8 @@ public class AppendOnlyMultiMapStore implements Closeable {
 
     public void restoreRedeemScripts(Wallet wallet, CsvScriptExtension csv) {
 
+        final Address address1 = wallet.currentReceiveAddress();
+        log.info("Restoring redeem scripts for wallet calling get current address to kick off the isAddressMine working : {}", address1);
         data.keySet().stream().map(wallet::parseAddress).filter(wallet::isAddressMine).forEach(address ->
                 data.get(address.toString()).forEach(script -> {
                     csv.addRedeemScript(script);
