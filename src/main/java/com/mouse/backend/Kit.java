@@ -12,6 +12,7 @@ import org.bitcoinj.base.Address;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
 import org.bitcoinj.base.Coin;
+import com.mouse.backend.util.BalanceInfo;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.crypto.MnemonicCode;
@@ -809,6 +810,29 @@ public class Kit {
         Coin spendable = confirmed.subtract(pendingOutgoing).subtract(pendingChange);
         if (spendable.isNegative()) return 0L;
         return spendable.getValue();
+    }
+
+    public static BalanceInfo getBalanceInfo(String walletName) {
+        ensureContextSet();
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) {
+            return new BalanceInfo(0L, 0L, 0L, 0L, 0L, 0L);
+        }
+
+        long confirmed = wallet.getBalance().getValue();
+        long pendingOutgoing = getPendingOutgoing(walletName);
+        long pendingChange = getPendingChange(walletName);
+        long locked = getLockedBalance(walletName);
+        long spendable = Math.max(0L, confirmed - pendingOutgoing - pendingChange - locked);
+
+        // Pending incoming is intentionally reported separately; wallet.getPendingTransactions() is
+        // a conservative representation of pending amounts at this layer.
+        long pendingIncoming = wallet.getPendingTransactions().stream()
+                .filter(tx -> tx.getValueSentFromMe(wallet).isZero())
+                .mapToLong(tx -> tx.getValueSentToMe(wallet).getValue())
+                .sum();
+
+        return new BalanceInfo(confirmed, pendingIncoming, pendingOutgoing, pendingChange, locked, spendable);
     }
 
     public static List<Utxo> utxos(String walletName) {
