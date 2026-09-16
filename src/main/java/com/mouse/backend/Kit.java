@@ -11,6 +11,7 @@ import com.mouse.backend.hook.DownloadTracker;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.ScriptType;
 import org.bitcoinj.base.Sha256Hash;
+import org.bitcoinj.base.Coin;
 import org.bitcoinj.core.*;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.crypto.MnemonicCode;
@@ -68,6 +69,18 @@ public class Kit {
     private static PeerGroup peerGroup;
 
     private static java.time.Duration autosaveDuration = java.time.Duration.ofSeconds(5);
+
+    private static Context bitcoinjContext;
+
+    private static void ensureContextSet(){
+        try{
+            if(bitcoinjContext != null && Context.get() == null){
+                Context.propagate(bitcoinjContext);
+            }
+        }catch (Exception e){
+            log.warn("Failed to propagate bitcoinj Context to thread", e);
+        }
+    }
 
     private static final Map<String, Wallet> wallets = new ConcurrentHashMap<>();
     private static final Pattern ALLOWED_WALLET_NAME = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9_-]{0,62}[A-Za-z0-9])?");
@@ -748,6 +761,54 @@ public class Kit {
 
     public static List<Utxo> getCheckSeqVerUtxos(String walletName) {
         return utxos(walletName).stream().filter(Utxo::isCheckSeqVer).toList();
+    }
+
+    public static long getPendingChange(String walletName) {
+        ensureContextSet();
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return 0L;
+        Coin total = Coin.ZERO;
+        for (org.bitcoinj.core.Transaction tx : wallet.getPendingTransactions()) {
+            try {
+                Coin fromMe = tx.getValueSentFromMe(wallet);
+                if (fromMe.isZero()) continue; // not an outgoing tx
+                Coin toMe = tx.getValueSentToMe(wallet);
+                if (toMe.isNegative()) continue;
+                total = total.add(toMe);
+            } catch (Exception e) {
+                log.warn("Failed to compute pending change for tx {}", tx.getTxId(), e);
+            }
+        }
+        return total.getValue();
+    }
+
+    public static long getPendingOutgoing(String walletName) {
+        ensureContextSet();
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return 0L;
+        Coin total = Coin.ZERO;
+        for (org.bitcoinj.core.Transaction tx : wallet.getPendingTransactions()) {
+            try {
+                Coin fromMe = tx.getValueSentFromMe(wallet);
+                if (fromMe.isNegative()) continue;
+                total = total.add(fromMe);
+            } catch (Exception e) {
+                log.warn("Failed to compute pending outgoing for tx {}", tx.getTxId(), e);
+            }
+        }
+        return total.getValue();
+    }
+
+    public static long getSpendableBalance(String walletName) {
+        ensureContextSet();
+        Wallet wallet = getWallet(walletName);
+        if (wallet == null) return 0L;
+        Coin confirmed = wallet.getBalance();
+        Coin pendingOutgoing = Coin.ofSat(getPendingOutgoing(walletName));
+        Coin pendingChange = Coin.ofSat(getPendingChange(walletName));
+        Coin spendable = confirmed.subtract(pendingOutgoing).subtract(pendingChange);
+        if (spendable.isNegative()) return 0L;
+        return spendable.getValue();
     }
 
     public static List<Utxo> utxos(String walletName) {
