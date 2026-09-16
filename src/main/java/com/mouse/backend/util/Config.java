@@ -35,8 +35,8 @@ public class Config {
     public static final String REDEEM_SCRIPT_HEX_KEY = "redeemScriptHex";
     public static final String CREATION_TIME_KEY = "creationTime";
 
-    public static final int MIN_PEERS_TO_CAST_TXN = 2;
-    public static final int MAX_PEERS = 3;
+    public static final int MIN_PEERS_TO_CAST_TXN = 1;
+    public static final int MAX_PEERS = 2;
 
     private Config() {}
 }
