@@ -816,23 +816,130 @@ public class Kit {
         ensureContextSet();
         Wallet wallet = getWallet(walletName);
         if (wallet == null) {
+            log.info("[balance:{}] wallet not loaded", walletName);
             return new BalanceInfo(0L, 0L, 0L, 0L, 0L, 0L);
         }
 
-        long confirmed = wallet.getBalance().getValue();
-        long pendingOutgoing = getPendingOutgoing(walletName);
-        long pendingChange = getPendingChange(walletName);
+        long confirmed = 0L, pendingChange = 0L, pendingIncoming = 0L;
+
+        log.info("[balance:{}] ---- UTXO set ({} unspent outputs) ----",
+                walletName, wallet.getUnspents().size());
+
+        for (TransactionOutput out : wallet.getUnspents()) {
+            Transaction parent = out.getParentTransaction();
+            if (parent == null) {
+                log.warn("[balance:{}]   output {} has no parent tx, skipped", walletName, out);
+                continue;
+            }
+
+            long value = out.getValue().getValue();
+            TransactionConfidence conf = parent.getConfidence();
+            TransactionConfidence.ConfidenceType type = conf.getConfidenceType();
+            boolean fromMe = parent.getValueSentFromMe(wallet).isPositive();
+            String bucket;
+
+            switch (type) {
+                case BUILDING -> { confirmed += value; bucket = "CONFIRMED"; }
+                case PENDING -> {
+                    if (fromMe) { pendingChange += value;   bucket = "PENDING_CHANGE"; }
+                    else        { pendingIncoming += value; bucket = "PENDING_INCOMING"; }
+                }
+                default -> bucket = "IGNORED";
+            }
+
+            log.info("[balance:{}]   {}:{} {} -> {} (type={} src={} depth={} mine={} watched={})",
+                    walletName,
+                    parent.getTxId(),
+                    out.getIndex(),
+                    out.getValue().toFriendlyString(),
+                    bucket,
+                    type,
+                    conf.getSource(),
+                    out.getParentTransactionDepthInBlocks(),
+                    out.isMine(wallet),
+                    out.isWatched(wallet));
+        }
+
+        long pendingOutgoing = 0L;
+
+        log.info("[balance:{}] ---- pending txs ({}) ----",
+                walletName, wallet.getPendingTransactions().size());
+
+        for (Transaction tx : wallet.getPendingTransactions()) {
+            Coin sentFromMe = tx.getValueSentFromMe(wallet);
+            Coin sentToMe   = tx.getValueSentToMe(wallet);
+            Coin net        = tx.getValue(wallet);
+            if (net.isNegative()) pendingOutgoing += -net.getValue();
+
+            log.info("[balance:{}]   {} net={} fromMe={} toMe={} fee={} inputs={} outputs={} src={} peers={}",
+                    walletName,
+                    tx.getTxId(),
+                    net.toFriendlyString(),
+                    sentFromMe.toFriendlyString(),
+                    sentToMe.toFriendlyString(),
+                    tx.getFee() == null ? "?" : tx.getFee().toFriendlyString(),
+                    tx.getInputs().size(),
+                    tx.getOutputs().size(),
+                    tx.getConfidence().getSource(),
+                    tx.getConfidence().numBroadcastPeers());
+
+            // which of our outputs this tx consumed — chained sends show up here
+            for (TransactionInput in : tx.getInputs()) {
+                TransactionOutput connected = in.getConnectedOutput();
+                if (connected != null && connected.isMine(wallet)) {
+                    Transaction src = connected.getParentTransaction();
+                    log.info("[balance:{}]       spends {}:{} {} (parent pending={})",
+                            walletName,
+                            src == null ? "?" : src.getTxId().toString(),
+                            connected.getIndex(),
+                            connected.getValue().toFriendlyString(),
+                            src != null && src.getConfidence().getConfidenceType()
+                                    == TransactionConfidence.ConfidenceType.PENDING);
+                }
+            }
+        }
+
         long locked = getLockedBalance(walletName);
-        long spendable = Math.max(0L, confirmed - pendingOutgoing - pendingChange - locked);
+        Coin available = wallet.getBalance(Wallet.BalanceType.AVAILABLE);
+        Coin estimated = wallet.getBalance(Wallet.BalanceType.ESTIMATED);
+        Coin availableSpendable = wallet.getBalance(Wallet.BalanceType.AVAILABLE_SPENDABLE);
+        Coin estimatedSpendable = wallet.getBalance(Wallet.BalanceType.ESTIMATED_SPENDABLE);
 
-        // Pending incoming is intentionally reported separately; wallet.getPendingTransactions() is
-        // a conservative representation of pending amounts at this layer.
-        long pendingIncoming = wallet.getPendingTransactions().stream()
-                .filter(tx -> tx.getValueSentFromMe(wallet).isZero())
-                .mapToLong(tx -> tx.getValueSentToMe(wallet).getValue())
-                .sum();
+        long spendable = Math.max(0L, available.getValue() - locked);
 
-        return new BalanceInfo(confirmed, pendingIncoming, pendingOutgoing, pendingChange, locked, spendable);
+        BalanceInfo info = new BalanceInfo(
+                confirmed, pendingIncoming, pendingOutgoing, pendingChange, locked, spendable);
+
+        log.info("[balance:{}] ---- BalanceInfo ----", walletName);
+        log.info("[balance:{}]   confirmed       = {}", walletName, Coin.ofSat(confirmed).toFriendlyString());
+        log.info("[balance:{}]   pendingIncoming = {}", walletName, Coin.ofSat(pendingIncoming).toFriendlyString());
+        log.info("[balance:{}]   pendingOutgoing = {}", walletName, Coin.ofSat(pendingOutgoing).toFriendlyString());
+        log.info("[balance:{}]   pendingChange   = {}", walletName, Coin.ofSat(pendingChange).toFriendlyString());
+        log.info("[balance:{}]   locked          = {}", walletName, Coin.ofSat(locked).toFriendlyString());
+        log.info("[balance:{}]   spendable       = {}", walletName, Coin.ofSat(spendable).toFriendlyString());
+
+        log.info("[balance:{}] ---- bitcoinj cross-check ----", walletName);
+        log.info("[balance:{}]   AVAILABLE           = {}", walletName, available.toFriendlyString());
+        log.info("[balance:{}]   ESTIMATED           = {}", walletName, estimated.toFriendlyString());
+        log.info("[balance:{}]   AVAILABLE_SPENDABLE = {}", walletName, availableSpendable.toFriendlyString());
+        log.info("[balance:{}]   ESTIMATED_SPENDABLE = {}", walletName, estimatedSpendable.toFriendlyString());
+
+        // invariants — if either fires, the buckets are misclassifying
+        long derivedEstimated = confirmed + pendingChange + pendingIncoming;
+        if (derivedEstimated != estimated.getValue()) {
+            log.warn("[balance:{}]   MISMATCH derived ESTIMATED {} != bitcoinj {}",
+                    walletName, Coin.ofSat(derivedEstimated).toFriendlyString(), estimated.toFriendlyString());
+        }
+        if (confirmed + pendingChange != available.getValue()) {
+            log.warn("[balance:{}]   MISMATCH confirmed+pendingChange {} != AVAILABLE {}",
+                    walletName,
+                    Coin.ofSat(confirmed + pendingChange).toFriendlyString(), available.toFriendlyString());
+        }
+        if (!wallet.isConsistent()) {
+            log.warn("[balance:{}]   WALLET INCONSISTENT", walletName);
+        }
+
+        return info;
     }
 
     public static List<Utxo> utxos(String walletName) {
